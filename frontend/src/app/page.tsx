@@ -64,10 +64,14 @@ export default function Home() {
     }, 1800);
   };
 
+  const exportPDF = () => {
+    window.print();
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-white font-sans p-8">
       {/* Header */}
-      <header className="max-w-6xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-10">
+      <header className="max-w-6xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-10 print:hidden">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg shadow-cyan-500/20">
             ⚡
@@ -91,7 +95,7 @@ export default function Home() {
 
       {/* Main Section */}
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10">
+        <div className="text-center mb-10 print:hidden">
           <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
             Autonomous RWA Risk Assessment
           </h2>
@@ -101,7 +105,7 @@ export default function Home() {
         </div>
 
         {/* Input Form */}
-        <form onSubmit={handleAnalyze} className="mb-10">
+        <form onSubmit={handleAnalyze} className="mb-10 print:hidden">
           <div className="flex gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
             <input
               type="text"
@@ -121,29 +125,28 @@ export default function Home() {
         </form>
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm text-center">
+          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm text-center print:hidden">
             {error}
           </div>
         )}
 
         {/* Results Dashboard */}
         {result && result.metrics && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300 print:text-black print:bg-white">
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Asset Category</span>
-                <p className="text-lg font-semibold text-slate-200">{result.rwaType}</p>
+                <p className="text-lg font-semibold text-slate-200 print:text-black">{result.rwaType}</p>
               </div>
               <div className="text-right">
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
-                <p className="text-3xl font-black text-emerald-400">{result.score}/100</p>
+                <p className="text-3xl font-black text-emerald-400 print:text-emerald-700">{result.score}/100</p>
               </div>
             </div>
 
             {/* Radar Chart & Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              {/* Radar Chart */}
-              <div className="h-64 w-full bg-slate-950/50 rounded-xl p-2 border border-slate-800/50 flex items-center justify-center">
+              <div className="h-64 w-full bg-slate-950/50 rounded-xl p-2 border border-slate-800/50 flex items-center justify-center print:border-gray-300">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="70%" data={result.radarData}>
                     <PolarGrid stroke="#334155" />
@@ -153,13 +156,12 @@ export default function Home() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Progress Factors */}
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Detailed Breakdown</h3>
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:text-gray-600">Detailed Breakdown</h3>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">Liquidity Depth</span>
-                    <span className="text-cyan-400 font-mono">{result.metrics.liquidity}%</span>
+                    <span className="text-slate-400 print:text-gray-700">Liquidity Depth</span>
+                    <span className="text-cyan-400 font-mono print:text-black">{result.metrics.liquidity}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
                     <div className="bg-cyan-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.metrics.liquidity}%` }}></div>
@@ -168,8 +170,8 @@ export default function Home() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">Collateral Ratio</span>
-                    <span className="text-indigo-400 font-mono">{result.metrics.collateral}%</span>
+                    <span className="text-slate-400 print:text-gray-700">Collateral Ratio</span>
+                    <span className="text-indigo-400 font-mono print:text-black">{result.metrics.collateral}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
                     <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.metrics.collateral}%` }}></div>
@@ -178,8 +180,8 @@ export default function Home() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">Smart Contract Security</span>
-                    <span className="text-purple-400 font-mono">{result.metrics.security}%</span>
+                    <span className="text-slate-400 print:text-gray-700">Smart Contract Security</span>
+                    <span className="text-purple-400 font-mono print:text-black">{result.metrics.security}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
                     <div className="bg-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.metrics.security}%` }}></div>
@@ -188,8 +190,8 @@ export default function Home() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">Audit Verification</span>
-                    <span className="text-emerald-400 font-mono">{result.metrics.audit}%</span>
+                    <span className="text-slate-400 print:text-gray-700">Audit Verification</span>
+                    <span className="text-emerald-400 font-mono print:text-black">{result.metrics.audit}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
                     <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.metrics.audit}%` }}></div>
@@ -199,25 +201,31 @@ export default function Home() {
             </div>
 
             {/* AI Verdict */}
-            <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4">
-              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block mb-1">
+            <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 print:bg-gray-100 print:border-gray-300">
+              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block mb-1 print:text-blue-800">
                 🤖 Autonomous Agent Verdict
               </span>
-              <p className="text-sm text-slate-300 leading-relaxed">{result.verdict}</p>
+              <p className="text-sm text-slate-300 leading-relaxed print:text-black">{result.verdict}</p>
             </div>
 
-            {/* Mint Proof Action */}
-            <div className="pt-4 border-t border-slate-800 flex flex-col items-center gap-3">
+            {/* Actions */}
+            <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
               <button
                 onClick={recordOnChain}
-                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20"
+                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20"
               >
                 🔗 Record Score Proof On-Chain
               </button>
-              {txStatus && (
-                <p className="text-xs font-mono text-emerald-400 animate-pulse">{txStatus}</p>
-              )}
+              <button
+                onClick={exportPDF}
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition border border-slate-700"
+              >
+                📥 Export Audit Report
+              </button>
             </div>
+            {txStatus && (
+              <p className="text-xs font-mono text-emerald-400 text-center animate-pulse print:hidden">{txStatus}</p>
+            )}
           </div>
         )}
       </div>
