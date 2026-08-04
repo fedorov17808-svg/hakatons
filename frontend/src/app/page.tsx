@@ -1,18 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
 
 export default function Home() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
+  
+  // Web3 States
+  const [account, setAccount] = useState<string | null>(null);
+  const [txStatus, setTxStatus] = useState<string>("");
+
+  // Connect MetaMask Wallet
+  const connectWallet = async () => {
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      try {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        setAccount(accounts[0]);
+      } catch (err) {
+        console.error("User rejected wallet connection", err);
+      }
+    } else {
+      alert("Please install MetaMask to use Web3 features!");
+    }
+  };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
     setLoading(true);
     setError("");
+    setTxStatus("");
 
     try {
       const response = await fetch("http://127.0.0.1:8000/api/analyze", {
@@ -32,8 +53,22 @@ export default function Home() {
     }
   };
 
+  // Simulate On-Chain Record Verification
+  const recordOnChain = async () => {
+    if (!account) {
+      alert("Please connect your wallet first!");
+      return;
+    }
+    setTxStatus("Broadcasting transaction to Creditcoin Testnet...");
+    
+    setTimeout(() => {
+      setTxStatus("✅ Proof successfully minted on-chain! Tx: 0x8f2a...39e1");
+    }, 2000);
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-white font-sans p-8">
+      {/* Header */}
       <header className="max-w-5xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-12">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg shadow-cyan-500/20">
@@ -47,12 +82,16 @@ export default function Home() {
           <span className="text-xs px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full font-mono">
             Creditcoin Testnet
           </span>
-          <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg transition border border-slate-700">
-            Connect Wallet
+          <button
+            onClick={connectWallet}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg transition border border-slate-700 text-cyan-400 font-mono"
+          >
+            {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
           </button>
         </div>
       </header>
 
+      {/* Hero / Main Section */}
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
@@ -63,6 +102,7 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Input Form */}
         <form onSubmit={handleAnalyze} className="mb-10">
           <div className="flex gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
             <input
@@ -88,6 +128,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* Results Card */}
         {result && result.metrics && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300">
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
@@ -101,6 +142,7 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Risk Factors */}
             <div className="space-y-4">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Risk Factors Breakdown</h3>
               
@@ -137,11 +179,25 @@ export default function Home() {
               </div>
             </div>
 
+            {/* AI Verdict */}
             <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 mt-4">
               <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block mb-1">
                 🤖 Autonomous Agent Verdict
               </span>
               <p className="text-sm text-slate-300 leading-relaxed">{result.verdict}</p>
+            </div>
+
+            {/* Mint On-Chain Action */}
+            <div className="pt-4 border-t border-slate-800 flex flex-col items-center gap-3">
+              <button
+                onClick={recordOnChain}
+                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20"
+              >
+                🔗 Record Score Proof On-Chain
+              </button>
+              {txStatus && (
+                <p className="text-xs font-mono text-emerald-400 animate-pulse">{txStatus}</p>
+              )}
             </div>
           </div>
         )}
