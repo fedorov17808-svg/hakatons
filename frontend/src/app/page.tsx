@@ -6,23 +6,30 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
     setLoading(true);
+    setError("");
 
-    // Имитация запроса к backend API
-    setTimeout(() => {
-      setResult({
-        score: 88,
-        status: "APPROVED",
-        volatility: "Low (1.2%)",
-        verdict: "CreditPulse AI confirmed high liquidity & validated Attestcoin proof on Creditcoin network.",
-        rwaType: "Real Estate Tokenization",
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
       });
+
+      if (!response.ok) throw new Error("Backend connection failed");
+      
+      const data = await response.json();
+      setResult(data);
+    } catch (err) {
+      setError("Failed to connect to CreditPulse AI Engine. Make sure FastAPI is running on port 8000.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -84,6 +91,12 @@ export default function Home() {
             </button>
           </div>
         </form>
+
+        {error && (
+          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         {/* Results Card */}
         {result && (
