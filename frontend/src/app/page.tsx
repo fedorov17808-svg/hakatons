@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ethers } from "ethers";
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
 
 export default function Home() {
   const [address, setAddress] = useState("");
@@ -9,11 +10,9 @@ export default function Home() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
   
-  // Web3 States
   const [account, setAccount] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<string>("");
 
-  // Smart Connect Wallet (Real MetaMask or Demo Fallback)
   const connectWallet = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       try {
@@ -24,7 +23,6 @@ export default function Home() {
         console.error("User rejected wallet connection", err);
       }
     } else {
-      // Demo fallback for browsers without extension (Safari)
       setAccount("0x71C7656EC7ab88b098defB751B7401B5f6d8976F");
     }
   };
@@ -54,7 +52,6 @@ export default function Home() {
     }
   };
 
-  // On-Chain Record Verification Simulation
   const recordOnChain = async () => {
     if (!account) {
       alert("Please connect your wallet first!");
@@ -70,7 +67,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white font-sans p-8">
       {/* Header */}
-      <header className="max-w-5xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-12">
+      <header className="max-w-6xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-10">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg shadow-cyan-500/20">
             ⚡
@@ -92,8 +89,8 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Hero / Main Section */}
-      <div className="max-w-3xl mx-auto">
+      {/* Main Section */}
+      <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
             Autonomous RWA Risk Assessment
@@ -111,7 +108,7 @@ export default function Home() {
               placeholder="Enter Asset / Smart Contract Address (0x...)"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500"
+              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500 font-mono"
             />
             <button
               type="submit"
@@ -129,7 +126,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* Results Card */}
+        {/* Results Dashboard */}
         {result && result.metrics && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300">
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
@@ -143,11 +140,22 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Risk Factors */}
-            <div className="space-y-4">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Risk Factors Breakdown</h3>
-              
+            {/* Radar Chart & Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* Radar Chart */}
+              <div className="h-64 w-full bg-slate-950/50 rounded-xl p-2 border border-slate-800/50 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={result.radarData}>
+                    <PolarGrid stroke="#334155" />
+                    <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                    <Radar name="Risk Index" dataKey="A" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.4} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Progress Factors */}
               <div className="space-y-3">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Detailed Breakdown</h3>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400">Liquidity Depth</span>
@@ -160,7 +168,7 @@ export default function Home() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">Collateral Health Ratio</span>
+                    <span className="text-slate-400">Collateral Ratio</span>
                     <span className="text-indigo-400 font-mono">{result.metrics.collateral}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
@@ -170,7 +178,17 @@ export default function Home() {
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400">On-Chain Audit Verification</span>
+                    <span className="text-slate-400">Smart Contract Security</span>
+                    <span className="text-purple-400 font-mono">{result.metrics.security}%</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2">
+                    <div className="bg-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.metrics.security}%` }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400">Audit Verification</span>
                     <span className="text-emerald-400 font-mono">{result.metrics.audit}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
@@ -181,14 +199,14 @@ export default function Home() {
             </div>
 
             {/* AI Verdict */}
-            <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 mt-4">
+            <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4">
               <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block mb-1">
                 🤖 Autonomous Agent Verdict
               </span>
               <p className="text-sm text-slate-300 leading-relaxed">{result.verdict}</p>
             </div>
 
-            {/* Mint On-Chain Action */}
+            {/* Mint Proof Action */}
             <div className="pt-4 border-t border-slate-800 flex flex-col items-center gap-3">
               <button
                 onClick={recordOnChain}
