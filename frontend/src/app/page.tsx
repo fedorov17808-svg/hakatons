@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ethers } from "ethers";
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
   const [account, setAccount] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<string>("");
 
-  // Connect MetaMask Wallet
+  // Smart Connect Wallet (Real MetaMask or Demo Fallback)
   const connectWallet = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
       try {
@@ -24,7 +24,8 @@ export default function Home() {
         console.error("User rejected wallet connection", err);
       }
     } else {
-      alert("Please install MetaMask to use Web3 features!");
+      // Demo fallback for browsers without extension (Safari)
+      setAccount("0x71C7656EC7ab88b098defB751B7401B5f6d8976F");
     }
   };
 
@@ -53,7 +54,7 @@ export default function Home() {
     }
   };
 
-  // Simulate On-Chain Record Verification
+  // On-Chain Record Verification Simulation
   const recordOnChain = async () => {
     if (!account) {
       alert("Please connect your wallet first!");
@@ -62,8 +63,8 @@ export default function Home() {
     setTxStatus("Broadcasting transaction to Creditcoin Testnet...");
     
     setTimeout(() => {
-      setTxStatus("✅ Proof successfully minted on-chain! Tx: 0x8f2a...39e1");
-    }, 2000);
+      setTxStatus("✅ Risk Proof Minted On-Chain! Tx: 0x8f2a91b...39e1");
+    }, 1800);
   };
 
   return (
@@ -84,7 +85,7 @@ export default function Home() {
           </span>
           <button
             onClick={connectWallet}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg transition border border-slate-700 text-cyan-400 font-mono"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg transition border border-slate-700 text-cyan-400 font-mono shadow-sm"
           >
             {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
           </button>
