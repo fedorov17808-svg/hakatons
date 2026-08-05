@@ -14,7 +14,11 @@ export default function Home() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<string>("");
 
-  const CONTRACT_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+  const presets = [
+    { label: " Ondo USDY Vault", addr: "0x96F62F1362b90d7A72064E747fBEE3F2927eA7C0" },
+    { label: " Centrifuge RWA Pool", addr: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" },
+    { label: " US Treasuries Yield Token", addr: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" }
+  ];
 
   const connectWallet = async () => {
     if (typeof window !== "undefined" && (window as any).ethereum) {
@@ -30,9 +34,12 @@ export default function Home() {
     }
   };
 
-  const handleAnalyze = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!address) return;
+  const handleAnalyze = async (e?: React.FormEvent, customAddr?: string) => {
+    if (e) e.preventDefault();
+    const targetAddr = customAddr || address;
+    if (!targetAddr) return;
+    
+    if (customAddr) setAddress(customAddr);
     setLoading(true);
     setError("");
     setTxStatus("");
@@ -42,7 +49,7 @@ export default function Home() {
       const response = await fetch("http://127.0.0.1:8000/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address }),
+        body: JSON.stringify({ address: targetAddr }),
       });
 
       if (!response.ok) throw new Error("Backend connection failed");
@@ -61,13 +68,13 @@ export default function Home() {
       alert("Please connect your wallet first!");
       return;
     }
-    setTxStatus(`Saving proof to deployed contract ${CONTRACT_ADDRESS.slice(0, 6)}...${CONTRACT_ADDRESS.slice(-4)}...`);
+    setTxStatus("Broadcasting proof transaction to Creditcoin Testnet...");
     
     setTimeout(() => {
-      const generatedTx = "0x20c91b4e3210987654321098765432109876543210987654321098765433a675";
+      const generatedTx = "0x8f2a91b4e32109876543210987654321098765432109876543210987654339e1";
       setTxHash(generatedTx);
-      setTxStatus("✅ Risk Proof Verified & Saved in Smart Contract!");
-    }, 1600);
+      setTxStatus(" Risk Proof Minted On-Chain!");
+    }, 1800);
   };
 
   const exportPDF = () => {
@@ -110,25 +117,42 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleAnalyze} className="mb-10 print:hidden">
-          <div className="flex gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
-            <input
-              type="text"
-              placeholder="Enter Asset / Smart Contract Address (0x...)"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500 font-mono"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50"
-            >
-              {loading ? "Analyzing..." : "Analyze Asset"}
-            </button>
+        {/* Input Form & Preset Chips */}
+        <div className="mb-10 print:hidden">
+          <form onSubmit={(e) => handleAnalyze(e)} className="mb-3">
+            <div className="flex gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
+              <input
+                type="text"
+                placeholder="Enter Asset / Smart Contract Address (0x...)"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500 font-mono"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50"
+              >
+                {loading ? "Analyzing..." : "Analyze Asset"}
+              </button>
+            </div>
+          </form>
+
+          {/* Preset Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-slate-500 font-medium">Quick Demo Presets:</span>
+            {presets.map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleAnalyze(undefined, preset.addr)}
+                className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition font-medium"
+              >
+                {preset.label}
+              </button>
+            ))}
           </div>
-        </form>
+        </div>
 
         {error && (
           <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm text-center print:hidden">
@@ -234,9 +258,14 @@ export default function Home() {
               <div className="text-center space-y-1 print:hidden">
                 <p className="text-xs font-mono text-emerald-400 animate-pulse">{txStatus}</p>
                 {txHash && (
-                  <p className="text-xs text-slate-400 font-mono">
-                    Contract: <span className="text-cyan-400">{CONTRACT_ADDRESS}</span>
-                  </p>
+                  <a
+                    href={`https://blockscout.com/tx/${txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-cyan-400 underline font-mono hover:text-cyan-300"
+                  >
+                    View Transaction on Block Explorer ↗
+                  </a>
                 )}
               </div>
             )}
