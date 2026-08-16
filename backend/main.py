@@ -52,10 +52,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.options("/api/{rest_of_path:path}")
-async def preflight_handler(request: Request, rest_of_path: str):
-    return JSONResponse(content="OK")
-
 
 @app.middleware("http")
 async def limit_upload_size(request: Request, call_next):
@@ -202,11 +198,6 @@ def get_stats():
         'cache_status': 'warm' if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL else 'cold',
         'uptime_seconds': now - SERVER_START_TIME
     }
-
-@app.get("/api/health", tags=['Health'])
-def api_health():
-    """Return the health status of the API."""
-    return {"status": "ok"}
 
 @app.post("/api/analyze", tags=['Analysis'], response_model=AnalyzeResponse)
 @limiter.limit("5/minute")

@@ -198,7 +198,7 @@ export default function Home() {
         }
       }
     } else {
-      setError('No Web3 wallet detected. Please install MetaMask, Coinbase Wallet, Trust Wallet, or any EIP-1193 compatible wallet.');
+      setError('INFO:No Web3 wallet detected — that\'s OK! Wallet is optional. All features work without it.');
     }
   };
 
@@ -537,12 +537,12 @@ export default function Home() {
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-red-950 border-2 border-red-500 rounded-xl text-red-500 text-sm flex justify-between items-center shadow-lg shadow-red-500/20 print:hidden font-medium">
+          <div className={`mb-6 p-4 ${error.startsWith('INFO:') ? 'bg-blue-950/50 border-2 border-blue-500/50 text-blue-400 shadow-blue-500/10' : 'bg-red-950 border-2 border-red-500 text-red-500 shadow-red-500/20'} rounded-xl text-sm flex justify-between items-center shadow-lg print:hidden font-medium`}>
             <div className="flex items-center gap-3">
-              <span className="text-xl">⚠️</span>
-              <span>{error}</span>
+              <span className="text-xl">{error.startsWith('INFO:') ? 'ℹ️' : '⚠️'}</span>
+              <span>{error.startsWith('INFO:') ? error.slice(5) : error}</span>
             </div>
-            <button onClick={() => setError("")} aria-label="Close error" className="text-red-500 hover:text-red-400 hover:bg-red-900/50 p-1.5 rounded-lg transition-colors font-bold focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">
+            <button onClick={() => setError("")} aria-label="Close notification" className={`${error.startsWith('INFO:') ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/50' : 'text-red-500 hover:text-red-400 hover:bg-red-900/50'} p-1.5 rounded-lg transition-colors font-bold focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}>
               ✕
             </button>
           </div>
