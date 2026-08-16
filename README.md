@@ -58,6 +58,18 @@ Creditcoin is the foundational credit layer for decentralized finance and Real-W
 
 ---
 
+## 🎯 Demo Addresses
+
+Try these real DeFi protocol addresses to test the platform:
+
+| Protocol | Address | Expected Score |
+|----------|---------|----------------|
+| Aave V3 | `0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2` | ~85-90 (Low Risk) |
+| Compound V3 | `0xc3d688B66703497DAA19211EEdff47f25384cdc3` | ~75-85 (Moderate-Low) |
+| MakerDAO | `0x9759A6Ac90977b93B58547b4A71c78317f391A28` | ~70-80 (Moderate-Low) |
+
+---
+
 ## 🔗 Live Demo & Contract Verification
 
 | Parameter | Network Details |
@@ -72,11 +84,20 @@ Creditcoin is the foundational credit layer for decentralized finance and Real-W
 
 ### 📜 Verified On-Chain Transaction Examples
 
-Every risk report generates an on-chain transaction calling `saveRiskReport(...)` on Creditcoin:
+Every risk report generates an on-chain transaction calling `saveRiskReport(...)` on Creditcoin. Transactions can be verified on: https://creditcoin-testnet.blockscout.com/
 
 * [`0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298`](https://creditcoin-testnet.blockscout.com/tx/0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298) — Aave V3 Risk Score: 87/100 (Block #5,267,961)
 * [`0x2fdfb9884e67bfae964f8f8c4371d599a1b36f7f41ea2bdef9ef5f59186452f5`](https://creditcoin-testnet.blockscout.com/tx/0x2fdfb9884e67bfae964f8f8c4371d599a1b36f7f41ea2bdef9ef5f59186452f5) — Compound V3 Risk Score: 82/100 (Block #5,272,528)
 * [`0x033b8e2846089f17f0312599f63eef54d33917612c7b4f07a42f8b2068c792ab`](https://creditcoin-testnet.blockscout.com/tx/0x033b8e2846089f17f0312599f63eef54d33917612c7b4f07a42f8b2068c792ab) — MakerDAO Risk Score: 79/100 (Block #5,272,592)
+
+---
+
+## 💻 Tech Stack
+
+- **Frontend:** Next.js 15 + React 19 + Recharts
+- **Backend:** FastAPI + DeFiLlama Oracle
+- **Blockchain:** Creditcoin Testnet (CC3) + Solidity 0.8.28
+- **Wallet:** MetaMask with auto-network switch
 
 ---
 
@@ -130,19 +151,14 @@ graph LR
 
 ## 📊 Risk Scoring Methodology
 
-CreditPulse AI utilizes a deterministic, multi-factor risk assessment model evaluating six independent dimensions (0–100 scale):
+CreditPulse AI utilizes a deterministic, multi-factor risk assessment model explaining the 6 independent dimensions:
 
-```
-                      [ Liquidity Depth ]
-                             /   \
-                            /     \
-             [ Collateral ]         [ Security ]
-                  |                      |
-             [ Volatility ]         [ Governance ]
-                            \     /
-                             \   /
-                        [ Audit Status ]
-```
+- **Liquidity Depth**: Based on TVL from DeFiLlama
+- **Collateral Ratio**: Chain diversity and protocol maturity
+- **Smart Contract Security**: Number of audits and chain count
+- **Audit Verification**: Track record length (months since genesis)
+- **Volatility Index**: 7-day TVL stability
+- **Governance Score**: Community size and governance model
 
 ### 1. Liquidity Depth ($S_{\text{liq}}$)
 Evaluates market depth and liquidation capacity based on Total Value Locked (TVL):
@@ -402,14 +418,12 @@ curl GET http://localhost:8000/api/tx-status/0xceab86256882240b2684c5e3f2b1c52bf
 ## 🧪 Testing
 
 ```bash
-# Smart contract tests
+# Smart Contract Tests
 cd contracts && npx hardhat test
 
-# Backend health check
+# API Tests
 curl http://localhost:8000/health
-
-# API smoke test
-curl -X POST http://localhost:8000/api/analyze -H 'Content-Type: application/json' -d '{"address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"}'
+curl -X POST http://localhost:8000/api/analyze ...
 ```
 
 ---

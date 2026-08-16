@@ -6,7 +6,6 @@ import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } fro
 
 const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "demo123";
 const METAMASK_DOWNLOAD_URL = "https://metamask.io/download/";
 
 interface RiskResult {
@@ -254,11 +253,10 @@ export default function Home() {
     setTxBlockNumber(null);
     
     try {
-      const response = await fetch(`${API_URL}/api/record`, {
+      const response = await fetch(`/api/record`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
-          "X-API-Key": API_KEY
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           address: address || presets[0].address,
