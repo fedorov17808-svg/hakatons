@@ -382,7 +382,7 @@ export default function Home() {
             ⚡
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent animate-gradient-xy bg-[length:400%_400%]">
+            <h1 className="text-xl md:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent animate-gradient-xy bg-[length:400%_400%]">
               CreditPulse AI
             </h1>
           </div>
@@ -452,19 +452,19 @@ export default function Home() {
 
       {/* Main Section */}
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-10 print:hidden">
-          <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            Autonomous Risk Assessment
+        <div className="text-center mb-16 mt-8 print:hidden">
+          <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent pb-2">
+            Autonomous RWA<br className="hidden md:block"/> Risk Assessment
           </h2>
-          <p className="text-slate-400 text-base">
+          <p className="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
             Instantly evaluate smart contract and protocol risk using decentralized credit intelligence and AI.
           </p>
         </div>
 
         {/* Input Form & Preset Chips */}
         <div className="mb-10 print:hidden">
-          <form onSubmit={(e) => handleAnalyze(e)} className="mb-3">
-            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
+          <form onSubmit={(e) => handleAnalyze(e)} className="mb-4">
+            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/90 p-3 rounded-[1.25rem] border border-slate-700 shadow-2xl backdrop-blur-md focus-within:border-cyan-500/50 focus-within:ring-4 focus-within:ring-cyan-500/10 transition-all">
               <input
                 id="input-address"
                 aria-label="Enter Ethereum contract address"
@@ -473,14 +473,14 @@ export default function Home() {
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAnalyze(e); } }}
-                className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500 font-mono"
+                className="flex-1 bg-transparent px-5 py-4 text-base focus:outline-none text-white placeholder-slate-500 font-mono"
               />
               <button
                 id="btn-analyze"
                 aria-label="Analyze DeFi protocol risk"
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-base rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
                 {loading ? "Analyzing..." : "Analyze Protocol"}
               </button>
@@ -523,16 +523,16 @@ export default function Home() {
         </div>
 
         {loading && (
-          <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-2xl p-12 text-center space-y-6 shadow-2xl">
-            <div className="relative w-16 h-16 mx-auto">
-              <div className="absolute inset-0 bg-cyan-500 rounded-full animate-ping opacity-20"></div>
-              <div className="relative w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center border border-cyan-500/50">
-                <div className="w-4 h-4 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.8)]"></div>
+          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-16 text-center space-y-8 shadow-2xl my-10">
+            <div className="relative w-24 h-24 mx-auto">
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-full animate-ping opacity-20"></div>
+              <div className="relative w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center border-2 border-cyan-500/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]">
+                <div className="w-8 h-8 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-full animate-pulse shadow-[0_0_20px_rgba(34,211,238,0.8)]"></div>
               </div>
             </div>
-            <div className="space-y-2">
-              <p className="text-base font-medium text-cyan-400">Analyzing protocol with live DeFiLlama data<span className="loading-dots"></span></p>
-              <p className="text-xs font-mono text-slate-500">Estimated time: ~3-5 seconds</p>
+            <div className="space-y-3">
+              <p className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Analyzing protocol with live DeFiLlama data<span className="loading-dots text-cyan-400"></span></p>
+              <p className="text-sm font-mono text-slate-400">Estimated time: ~3-5 seconds</p>
             </div>
           </div>
         )}
@@ -562,34 +562,37 @@ export default function Home() {
                 )}
 
               </div>
-              <div className="text-right">
-                <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
-                <p className={`text-3xl font-black ${getScoreColor(result.score || 0).text} print:text-emerald-700`}>{displayScore}/100</p>
-                <div className="mt-1">
-                  <span className={`text-xs px-2 py-0.5 rounded-md border border-current ${getScoreColor(result.score || 0).text}`}>
+              <div className="text-right flex flex-col items-end">
+                <span className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-2">Overall Credit Score</span>
+                <div className="flex items-baseline gap-2">
+                  <p className={`text-7xl md:text-8xl font-black tracking-tighter ${getScoreColor(result.score || 0).text} drop-shadow-lg print:text-emerald-700`}>{displayScore}</p>
+                  <span className="text-2xl font-bold text-slate-500">/100</span>
+                </div>
+                <div className="mt-3">
+                  <span className={`text-sm px-4 py-1 rounded-full border-2 font-bold tracking-wide uppercase ${getScoreColor(result.score || 0).text} border-current shadow-lg`}>
                     {getScoreText(result.score || 0)}
                   </span>
                 </div>
                 {typeof result.market_benchmark === 'number' && result.market_benchmark > 0 && (
-                  <p className="text-xs font-mono text-slate-400 mt-2">Market TVL: ${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</p>
+                  <p className="text-sm font-mono text-slate-300 mt-4">Market TVL: <span className="text-white font-bold">${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</span></p>
                 )}
               </div>
             </div>
 
             {/* Radar Chart & Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              <div className="h-64 w-full bg-slate-950/50 rounded-xl p-2 border border-slate-800/50 flex items-center justify-center print:border-gray-300">
+              <div className="h-80 md:h-96 w-full bg-slate-900/40 rounded-2xl p-4 border border-white/5 flex items-center justify-center shadow-inner print:border-gray-300">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart cx="50%" cy="50%" outerRadius="70%" data={result.radarData}>
-                    <PolarGrid stroke="#334155" />
-                    <PolarAngleAxis dataKey="subject" stroke="#94a3b8" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                    <Radar name="Risk Index" dataKey="A" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.4} />
+                    <PolarGrid stroke="#334155" strokeDasharray="3 3" />
+                    <PolarAngleAxis dataKey="subject" stroke="#cbd5e1" tick={{ fill: "#cbd5e1", fontSize: 13, fontWeight: 500 }} />
+                    <Radar name="Risk Index" dataKey="A" stroke="#22d3ee" strokeWidth={2} fill="#06b6d4" fillOpacity={0.4} />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
 
-              <div id="section-breakdown" className="space-y-3">
-                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:text-gray-600">Detailed Breakdown</h3>
+              <div id="section-breakdown" className="space-y-5">
+                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4 print:text-gray-600">Detailed Breakdown</h3>
                 {[
                   { label: "Liquidity Depth", value: result.liquidity || 0 },
                   { label: "Collateral Ratio", value: result.collateral || 0 },
@@ -599,13 +602,13 @@ export default function Home() {
                   { label: "Governance Score", value: result.governance || 0 },
                 ].map((item, index) => (
                   <div key={item.label}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-400 print:text-gray-700">{item.label}</span>
-                      <span className={`${getScoreColor(item.value).text} font-mono print:text-black`}>{item.value}%</span>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-slate-300 font-medium print:text-gray-700">{item.label}</span>
+                      <span className={`${getScoreColor(item.value).text} font-bold font-mono print:text-black`}>{item.value}%</span>
                     </div>
-                    <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden print:bg-gray-200">
+                    <div className="w-full bg-slate-800/50 rounded-full h-3 overflow-hidden border border-slate-700/50 print:bg-gray-200">
                       <div className="h-full origin-left" style={{ width: `${item.value}%` }}>
-                        <div className={`${getScoreColor(item.value).bar} w-full h-full origin-left print:bg-gray-500`} style={{ animation: `fillBar 0.8s ease-out both`, animationDelay: `${index * 0.1}s` }}></div>
+                        <div className={`${getScoreColor(item.value).bar} w-full h-full origin-left shadow-[0_0_10px_currentColor] print:bg-gray-500`} style={{ animation: `fillBar 0.8s ease-out both`, animationDelay: `${index * 0.1}s` }}></div>
                       </div>
                     </div>
                   </div>
@@ -622,13 +625,13 @@ export default function Home() {
             </div>
 
             {/* Actions */}
-            <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
+            <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row gap-4 print:hidden">
               <button
                 id="btn-record"
                 aria-label="Record risk score on the Creditcoin blockchain"
                 onClick={recordOnChain}
                 disabled={txStep > 0 && txStep < 3}
-                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
+                className={`flex-1 py-4 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-extrabold text-base rounded-xl transition shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
               >
                 🔗 Record Risk Score On-Chain
               </button>
@@ -636,9 +639,9 @@ export default function Home() {
                 id="btn-export"
                 aria-label="Export audit report as PDF"
                 onClick={() => window.print()}
-                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                className="px-8 py-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-base rounded-xl transition border border-slate-600 shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
-                📥 Export Audit Report
+                📥 Export Report
               </button>
             </div>
             <p className="text-xs text-slate-500 mt-2 text-center print:hidden">
@@ -701,39 +704,40 @@ export default function Home() {
         )}
 
         {!loading && !result && !error && (
-          <div className="mt-12 bg-slate-900/50 border border-slate-800/50 rounded-3xl p-6 md:p-10 text-center shadow-xl backdrop-blur-sm print:hidden">
-            <h3 className="text-xl font-bold text-slate-200 mb-4">How CreditPulse AI Works</h3>
-            <p className="text-slate-400 text-sm mb-10 max-w-lg mx-auto">
+          <div className="mt-16 bg-gradient-to-b from-slate-900/80 to-slate-900/40 border border-white/5 rounded-[2.5rem] p-8 md:p-14 text-center shadow-2xl backdrop-blur-xl print:hidden relative overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+            <h3 className="text-3xl font-bold text-white mb-4 tracking-tight">How CreditPulse AI Works</h3>
+            <p className="text-slate-300 text-base md:text-lg mb-12 max-w-2xl mx-auto leading-relaxed">
               Our autonomous agent analyzes smart contracts in real-time, pulling live data to compute a comprehensive risk profile before you invest.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
-              <div className="flex flex-col items-center">
-                <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 text-2xl mb-4 border border-blue-500/20">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+              <div className="flex flex-col items-center group">
+                <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center text-blue-400 text-4xl mb-6 border border-blue-500/20 transition-all group-hover:scale-110 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]">
                   🔍
                 </div>
-                <h4 className="text-slate-200 font-semibold mb-2">1. Analyze</h4>
-                <p className="text-slate-500 text-xs">Gathers real-time TVL, liquidity data, and on-chain security metrics.</p>
+                <h4 className="text-slate-100 font-bold text-lg mb-3">1. Analyze</h4>
+                <p className="text-slate-400 text-sm leading-relaxed">Gathers real-time TVL, liquidity data, and on-chain security metrics.</p>
               </div>
-              <div className="flex flex-col items-center">
-                <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-400 text-2xl mb-4 border border-purple-500/20">
+              <div className="flex flex-col items-center group">
+                <div className="w-20 h-20 bg-purple-500/10 rounded-3xl flex items-center justify-center text-purple-400 text-4xl mb-6 border border-purple-500/20 transition-all group-hover:scale-110 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]">
                   🧮
                 </div>
-                <h4 className="text-slate-200 font-semibold mb-2">2. Score</h4>
-                <p className="text-slate-500 text-xs">Our AI engine evaluates multiple risk factors to generate a 0-100 credit score.</p>
+                <h4 className="text-slate-100 font-bold text-lg mb-3">2. Score</h4>
+                <p className="text-slate-400 text-sm leading-relaxed">Our AI engine evaluates multiple risk factors to generate a 0-100 credit score.</p>
               </div>
-              <div className="flex flex-col items-center">
-                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 text-2xl mb-4 border border-emerald-500/20">
+              <div className="flex flex-col items-center group">
+                <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-400 text-4xl mb-6 border border-emerald-500/20 transition-all group-hover:scale-110 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                   🔗
                 </div>
-                <h4 className="text-slate-200 font-semibold mb-2">3. Record</h4>
-                <p className="text-slate-500 text-xs">Anchors an immutable proof of the risk assessment on-chain.</p>
+                <h4 className="text-slate-100 font-bold text-lg mb-3">3. Record</h4>
+                <p className="text-slate-400 text-sm leading-relaxed">Anchors an immutable proof of the risk assessment on-chain.</p>
               </div>
             </div>
-            <div className="mt-10 pt-8 border-t border-slate-800/50">
-              <p className="text-sm text-slate-400 mb-4">Analyze a sample protocol:</p>
-              <div className="flex flex-wrap justify-center gap-3">
+            <div className="mt-14 pt-10 border-t border-white/5">
+              <p className="text-base text-slate-300 font-medium mb-6">Analyze a sample protocol:</p>
+              <div className="flex flex-wrap justify-center gap-4">
                 {presets.map((preset, idx) => (
-                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition-all duration-200 ease-out hover:scale-105 active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
+                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-6 py-3 bg-slate-800/80 hover:bg-slate-700 text-cyan-400 font-bold text-sm rounded-2xl transition hover:scale-105 active:scale-95 border border-slate-700 shadow-lg focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
                 ))}
               </div>
             </div>
@@ -741,8 +745,20 @@ export default function Home() {
         )}
       </div>
 
-      <footer className='max-w-4xl mx-auto mt-16 pt-6 border-t border-slate-800 text-center print:hidden'>
-        <p className='text-xs text-slate-600'>CreditPulse AI — Built on Creditcoin • Powered by DeFiLlama Oracles</p>
+      <footer className='max-w-4xl mx-auto mt-24 pt-8 border-t border-slate-800 text-center print:hidden pb-8'>
+        <div className="flex flex-col items-center justify-center gap-4">
+          <p className='text-sm text-slate-400 font-medium'>CreditPulse AI <span className="text-slate-600 px-2">v1.0.0</span></p>
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span>Built on <span className="text-emerald-400 font-medium">Creditcoin</span></span>
+            <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
+            <span>Powered by <span className="text-blue-400 font-medium">DeFiLlama Oracles</span></span>
+          </div>
+          <div className="flex gap-6 mt-2 text-xs text-slate-500">
+            <a href="#" className="hover:text-cyan-400 transition">Terms of Service</a>
+            <a href="#" className="hover:text-cyan-400 transition">Privacy Policy</a>
+            <a href="#" className="hover:text-cyan-400 transition">GitHub</a>
+          </div>
+        </div>
       </footer>
     </main>
   );
