@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const API_URL = process.env.API_URL || "http://backend:8000";
+    const API_URL = process.env.API_URL || "http://localhost:8000";
     const API_KEY = process.env.API_KEY || "demo123";
 
     const response = await fetch(`${API_URL}/api/record`, {

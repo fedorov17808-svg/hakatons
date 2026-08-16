@@ -194,11 +194,11 @@ export default function Home() {
         if (errorObj?.code === 4001) {
           setError("Wallet connection was rejected. Please try again.");
         } else {
-          setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
+          setError("Failed to connect wallet. Please make sure your Web3 wallet is unlocked.");
         }
       }
     } else {
-      window.open(METAMASK_DOWNLOAD_URL, '_blank');
+      setError('No Web3 wallet detected. Please install MetaMask, Coinbase Wallet, Trust Wallet, or any EIP-1193 compatible wallet.');
     }
   };
 
@@ -439,11 +439,11 @@ export default function Home() {
           ) : (
             <button
               id="btn-connect-wallet"
-              aria-label="Connect MetaMask wallet"
+              aria-label="Connect Web3 wallet (MetaMask, Coinbase, Trust, etc.)"
               onClick={connectWallet}
               className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
             >
-              Connect Wallet
+              🔗 Connect Wallet
             </button>
           )}
         </div>
@@ -638,6 +638,9 @@ export default function Home() {
                 📥 Export Audit Report
               </button>
             </div>
+            <p className="text-xs text-slate-500 mt-2 text-center print:hidden">
+              💡 No wallet needed — our backend relayer signs transactions. Connect wallet optionally to verify your identity.
+            </p>
 
             {txStep > 0 && (
               <div className={`mt-6 p-[2px] rounded-2xl ${txStep < 3 ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 animate-gradient-xy' : 'bg-slate-800 pulse-green'}`}>
