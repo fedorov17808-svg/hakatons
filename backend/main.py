@@ -18,7 +18,13 @@ from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="CreditPulse AI Engine")
+app = FastAPI(
+    title='CreditPulse AI Engine',
+    version='1.0.0',
+    description='Autonomous RWA Risk Assessment API powered by DeFiLlama oracles and Creditcoin blockchain',
+    docs_url='/docs',
+    redoc_url='/redoc'
+)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -60,6 +66,26 @@ class AnalyzeRequest(BaseModel):
         if not re.match(r"^(0x|0X)[a-fA-F0-9]{40}$", v):
             raise ValueError('Invalid Ethereum address')
         return v
+
+class AnalyzeResponse(BaseModel):
+    score: int
+    liquidity: int
+    collateral: int
+    security: int
+    volatility_score: int
+    governance: int
+    audit: int
+    rwa_type: str
+    verdict: str
+    market_benchmark: float
+    protocol_name: str
+    unverified: bool
+    response_time_ms: float
+
+class RecordResponse(BaseModel):
+    success: bool
+    txHash: str
+    status: str
 
 def fetch_defillama_data():
     url = "https://api.llama.fi/protocols"
@@ -120,22 +146,20 @@ def find_protocol(protocols, address):
     return None
 
 
-@app.get("/health")
+@app.get("/health", tags=['Health'])
 def health():
     return {"status": "ok"}
 
-@app.get("/api/health")
+@app.get("/api/health", tags=['Health'])
 def api_health():
     return {"status": "ok"}
 
-@app.post("/analyze")
-@limiter.limit("5/minute")
-def analyze(request: Request, req: AnalyzeRequest):
-    return process_analysis(req.address)
-
-@app.post("/api/analyze")
+@app.post("/api/analyze", tags=['Analysis'], response_model=AnalyzeResponse)
 @limiter.limit("5/minute")
 def api_analyze(request: Request, req: AnalyzeRequest):
+    """
+    Analyze the credit risk of a DeFi protocol or RWA contract using live DeFiLlama data
+    """
     return process_analysis(req.address)
 
 def process_analysis(address: str):
@@ -226,14 +250,16 @@ def process_analysis(address: str):
 
     overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
     
-    if overall >= 80:
+    if overall >= 85:
         verdict = 'LOW RISK — Institutional grade'
-    elif overall >= 60:
+    elif overall >= 70:
+        verdict = 'MODERATE-LOW RISK — Acceptable with monitoring'
+    elif overall >= 50:
         verdict = 'MODERATE RISK — Due diligence recommended'
-    elif overall >= 40:
+    elif overall >= 30:
         verdict = 'HIGH RISK — Significant concerns identified'
     else:
-        verdict = 'CRITICAL RISK — Not recommended'
+        verdict = 'CRITICAL RISK — Not recommended for investment'
         
     return {
         "score": overall,
@@ -276,14 +302,12 @@ class RecordRequest(BaseModel):
             raise ValueError('Value must be between 0 and 100')
         return v
 
-@app.post("/record")
-@limiter.limit("2/minute")
-def record(request: Request, req: RecordRequest, api_key: str = Depends(verify_api_key)):
-    return process_record(req)
-
-@app.post("/api/record")
+@app.post("/api/record", tags=['Recording'], response_model=RecordResponse)
 @limiter.limit("2/minute")
 def api_record(request: Request, req: RecordRequest, api_key: str = Depends(verify_api_key)):
+    """
+    Record a risk score proof on-chain via the Creditcoin Testnet relayer
+    """
     return process_record(req)
 
 def process_record(req: RecordRequest):
@@ -317,9 +341,11 @@ def process_record(req: RecordRequest):
         logger.error(f'Record transaction failed: {e}')
         raise HTTPException(status_code=500, detail='Transaction failed. Please try again.')
 
-@app.get("/tx-status/{tx_hash}")
-@app.get("/api/tx-status/{tx_hash}")
+@app.get("/api/tx-status/{tx_hash}", tags=['Recording'])
 def get_tx_status(tx_hash: str):
+    """
+    Poll the confirmation status of a previously submitted transaction
+    """
     if not re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
         raise HTTPException(status_code=400, detail="Invalid tx hash")
     try:

@@ -29,6 +29,35 @@ interface RiskResult {
   radarData?: { subject: string; A: number }[];
 }
 
+const getScoreColor = (score: number) => {
+  if (score >= 80) return { bar: 'bg-emerald-500', text: 'text-emerald-400' };
+  if (score >= 60) return { bar: 'bg-cyan-500', text: 'text-cyan-400' };
+  if (score >= 40) return { bar: 'bg-amber-500', text: 'text-amber-400' };
+  return { bar: 'bg-rose-500', text: 'text-rose-400' };
+};
+
+const getScoreText = (score: number) => {
+  if (score >= 85) return 'Excellent';
+  if (score >= 70) return 'Good';
+  if (score >= 50) return 'Fair';
+  if (score >= 30) return 'Poor';
+  return 'Critical';
+};
+
+const getVerdictStyle = (verdict?: string) => {
+  const v = verdict || '';
+  if (v.includes('LOW RISK')) return { box: 'bg-emerald-950/30 border-emerald-500', text: 'text-emerald-400' };
+  if (v.includes('MODERATE')) return { box: 'bg-cyan-950/30 border-cyan-500', text: 'text-cyan-400' };
+  if (v.includes('HIGH') || v.includes('CRITICAL')) return { box: 'bg-rose-950/30 border-rose-500', text: 'text-rose-400' };
+  return { box: 'bg-blue-950/30 border-blue-800/30', text: 'text-blue-400' };
+};
+
+const getButtonGradient = (score: number) => {
+  if (score >= 70) return 'from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/20';
+  if (score >= 40) return 'from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20';
+  return 'from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 shadow-amber-500/20';
+};
+
 export default function Home() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
@@ -166,9 +195,9 @@ export default function Home() {
         { subject: 'Liquidity', A: data.liquidity || 0 },
         { subject: 'Collateral', A: data.collateral || 0 },
         { subject: 'Security', A: data.security || 0 },
-        { subject: 'Governance', A: data.governance || 0 },
         { subject: 'Audit', A: data.audit || 0 },
-        { subject: 'Volatility', A: data.volatility_score || 0 }
+        { subject: 'Volatility', A: data.volatility_score || 0 },
+        { subject: 'Governance', A: data.governance || 0 }
       ];
       setResult({ ...data, radarData });
       playSuccessSound();
@@ -414,9 +443,14 @@ export default function Home() {
               </div>
               <div className="text-right">
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
-                <p className="text-3xl font-black text-emerald-400 print:text-emerald-700">{result.score}/100</p>
+                <p className={`text-3xl font-black ${getScoreColor(result.score || 0).text} print:text-emerald-700`}>{result.score}/100</p>
+                <div className="mt-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-md border border-current ${getScoreColor(result.score || 0).text}`}>
+                    {getScoreText(result.score || 0)}
+                  </span>
+                </div>
                 {result.market_benchmark > 0 && (
-                  <p className="text-xs font-mono text-slate-400 mt-1">Market TVL: ${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</p>
+                  <p className="text-xs font-mono text-slate-400 mt-2">Market TVL: ${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</p>
                 )}
               </div>
             </div>
@@ -438,68 +472,68 @@ export default function Home() {
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Liquidity Depth</span>
-                    <span className="text-cyan-400 font-mono print:text-black">{result.liquidity}%</span>
+                    <span className={`${getScoreColor(result.liquidity || 0).text} font-mono print:text-black`}>{result.liquidity}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-cyan-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.liquidity}%` }}></div>
+                    <div className={`${getScoreColor(result.liquidity || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.liquidity}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Collateral Ratio</span>
-                    <span className="text-indigo-400 font-mono print:text-black">{result.collateral}%</span>
+                    <span className={`${getScoreColor(result.collateral || 0).text} font-mono print:text-black`}>{result.collateral}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-indigo-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.collateral}%` }}></div>
+                    <div className={`${getScoreColor(result.collateral || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.collateral}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Smart Contract Security</span>
-                    <span className="text-purple-400 font-mono print:text-black">{result.security}%</span>
+                    <span className={`${getScoreColor(result.security || 0).text} font-mono print:text-black`}>{result.security}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.security}%` }}></div>
+                    <div className={`${getScoreColor(result.security || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.security}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Audit Verification</span>
-                    <span className="text-emerald-400 font-mono print:text-black">{result.audit}%</span>
+                    <span className={`${getScoreColor(result.audit || 0).text} font-mono print:text-black`}>{result.audit}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.audit}%` }}></div>
+                    <div className={`${getScoreColor(result.audit || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.audit}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Volatility Index</span>
-                    <span className="text-amber-400 font-mono print:text-black">{result.volatility_score || 0}%</span>
+                    <span className={`${getScoreColor(result.volatility_score || 0).text} font-mono print:text-black`}>{result.volatility_score || 0}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-amber-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.volatility_score || 0}%` }}></div>
+                    <div className={`${getScoreColor(result.volatility_score || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.volatility_score || 0}%` }}></div>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1">
                     <span className="text-slate-400 print:text-gray-700">Governance Score</span>
-                    <span className="text-rose-400 font-mono print:text-black">{result.governance || 0}%</span>
+                    <span className={`${getScoreColor(result.governance || 0).text} font-mono print:text-black`}>{result.governance || 0}%</span>
                   </div>
                   <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className="bg-rose-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.governance || 0}%` }}></div>
+                    <div className={`${getScoreColor(result.governance || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.governance || 0}%` }}></div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* AI Verdict */}
-            <div className="bg-blue-950/30 border border-blue-800/30 rounded-xl p-4 print:bg-gray-100 print:border-gray-300">
-              <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider block mb-1 print:text-blue-800">
+            <div className={`${getVerdictStyle(result.verdict).box} border rounded-xl p-4 print:bg-gray-100 print:border-gray-300`}>
+              <span className={`text-xs font-semibold ${getVerdictStyle(result.verdict).text} uppercase tracking-wider block mb-1 print:text-blue-800`}>
                 🤖 Autonomous Agent Verdict
               </span>
               <p className="text-sm text-slate-300 leading-relaxed print:text-black">{result.verdict}</p>
@@ -510,7 +544,7 @@ export default function Home() {
               <button
                 onClick={recordOnChain}
                 disabled={txStep > 0 && txStep < 3}
-                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 🔗 Record Score Proof On-Chain
               </button>

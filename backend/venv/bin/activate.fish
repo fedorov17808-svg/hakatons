@@ -29,7 +29,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/stepchik/Desktop/creditpulse-ai/backend/venv"
+set -gx VIRTUAL_ENV "/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

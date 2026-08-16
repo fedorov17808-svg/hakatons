@@ -1,4 +1,4 @@
-#!/Users/stepchik/Desktop/creditpulse-ai/backend/venv/bin/python3
+#!/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
