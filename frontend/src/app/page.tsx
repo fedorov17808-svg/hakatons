@@ -12,11 +12,27 @@ const CONTRACT_ABI = [
 
 const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "demo123";
+
+interface RiskResult {
+  rwa_type?: string;
+  protocol_name?: string;
+  score?: number;
+  market_benchmark?: number;
+  liquidity?: number;
+  collateral?: number;
+  security?: number;
+  audit?: number;
+  volatility_score?: number;
+  governance?: number;
+  verdict?: string;
+  radarData?: { subject: string; A: number }[];
+}
 
 export default function Home() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<RiskResult | null>(null);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   
@@ -34,6 +50,13 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(""), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const presets = [
     { name: "Aave V3", address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2" },
     { name: "Compound V3", address: "0xc3d688B66703497DAA19211EEdff47f25384cdc3" },
@@ -42,7 +65,8 @@ export default function Home() {
 
   const playSuccessSound = () => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
@@ -61,15 +85,18 @@ export default function Home() {
     const CORRECT_CHAIN_ID = '0x18E8F'; // 102031
     try {
       // First try to just switch to the correct chain
-      await (window as any).ethereum.request({
+      const ethWindow = window as unknown as { ethereum: { request: (args: unknown) => Promise<unknown> } };
+      await ethWindow.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: CORRECT_CHAIN_ID }],
       });
-    } catch (switchErr: any) {
+    } catch (switchErr: unknown) {
       // Chain doesn't exist - add it
-      if (switchErr.code === 4902 || switchErr.code === -32603) {
+      const err = switchErr as { code?: number };
+      if (err.code === 4902 || err.code === -32603) {
         try {
-          await (window as any).ethereum.request({
+          const ethWindow = window as unknown as { ethereum: { request: (args: unknown) => Promise<unknown> } };
+          await ethWindow.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
               chainId: CORRECT_CHAIN_ID,
@@ -87,15 +114,28 @@ export default function Home() {
   };
 
   const connectWallet = async () => {
-    if (typeof window !== "undefined" && (window as any).ethereum) {
+    const ethWindow = window as unknown as { ethereum: ethers.Eip1193Provider };
+    if (typeof window !== "undefined" && ethWindow.ethereum) {
       try {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const provider = new ethers.BrowserProvider(ethWindow.ethereum);
         const accounts = await provider.send("eth_requestAccounts", []);
         setAccount(accounts[0]);
-        await switchToCreditcoin();
-      } catch (err) {}
+        try {
+          await switchToCreditcoin();
+        } catch (switchErr) {
+          console.warn('Network switch skipped:', switchErr);
+        }
+      } catch (err: unknown) {
+        const errorObj = err as { code?: number };
+        if (errorObj?.code === 4001) {
+          setError("Wallet connection was rejected. Please try again.");
+        } else {
+          setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
+        }
+        console.error('Wallet connection error:', err);
+      }
     } else {
-      alert("Please install MetaMask to connect your wallet");
+      window.open('https://metamask.io/download/', '_blank');
     }
   };
 
@@ -154,7 +194,10 @@ export default function Home() {
     try {
       const response = await fetch(`${API_URL}/api/record`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-API-Key": API_KEY
+        },
         body: JSON.stringify({
           address: address || presets[0].address,
           score: Math.round(result.score || 0),
@@ -197,9 +240,10 @@ export default function Home() {
         setTxStep(0);
         setTxStatus("❌ Transaction confirmation timeout. Please check explorer.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTxStep(0);
-      setTxStatus("❌ " + (err?.message || "Could not process transaction. Please try again."));
+      const e = err as Error;
+      setTxStatus("❌ " + (e?.message || "Could not process transaction. Please try again."));
     }
   };
 
@@ -221,18 +265,18 @@ export default function Home() {
         }
       `}</style>
       {/* Header */}
-      <header className="max-w-6xl mx-auto flex justify-between items-center border-b border-slate-800 pb-6 mb-10 print:hidden">
+      <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-6 mb-10 gap-4 print:hidden">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-xl font-bold shadow-lg shadow-cyan-500/20">
             ⚡
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-blue-400 to-indigo-400 bg-clip-text text-transparent animate-gradient-xy bg-[length:400%_400%]">
               CreditPulse AI
             </h1>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap justify-center items-center gap-3">
           <a
             href={`${API_URL}/docs`}
             target="_blank"
@@ -241,15 +285,26 @@ export default function Home() {
           >
             ⚡ API Docs (/docs) ↗
           </a>
-          <span className="text-xs px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg font-mono">
-            Creditcoin Testnet
-          </span>
-          <button
-            onClick={connectWallet}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg transition border border-slate-700 text-cyan-400 font-mono shadow-sm"
-          >
-            {account ? `${account.slice(0, 6)}...${account.slice(-4)}` : "Connect Wallet"}
-          </button>
+          {account ? (
+            <div className="flex items-center gap-3 bg-slate-900/50 pl-3 pr-4 py-1.5 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner">
+              <div className="flex items-center gap-2">
+                <div className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                </div>
+                <span className="text-xs font-mono text-emerald-400 font-medium hidden sm:inline-block">Creditcoin Testnet</span>
+              </div>
+              <div className="w-px h-4 bg-slate-700 hidden sm:block"></div>
+              <span className="text-sm font-mono text-slate-200">{`${account.slice(0, 6)}...${account.slice(-4)}`}</span>
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2"
+            >
+              Connect Wallet
+            </button>
+          )}
         </div>
       </header>
 
@@ -267,7 +322,7 @@ export default function Home() {
         {/* Input Form & Preset Chips */}
         <div className="mb-10 print:hidden">
           <form onSubmit={(e) => handleAnalyze(e)} className="mb-3">
-            <div className="flex gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
+            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
               <input
                 type="text"
                 placeholder="Enter Asset / Smart Contract Address (0x...)"
@@ -319,17 +374,29 @@ export default function Home() {
         </div>
 
         {loading && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center animate-pulse space-y-4">
-            <div className="w-12 h-12 bg-cyan-500/20 rounded-full mx-auto flex items-center justify-center text-cyan-400 text-xl">
-              ⚙️
+          <div className="bg-slate-900/80 backdrop-blur-sm border border-slate-800 rounded-2xl p-12 text-center space-y-6 shadow-2xl">
+            <div className="relative w-16 h-16 mx-auto">
+              <div className="absolute inset-0 bg-cyan-500 rounded-full animate-ping opacity-20"></div>
+              <div className="relative w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center border border-cyan-500/50">
+                <div className="w-4 h-4 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_15px_rgba(34,211,238,0.8)]"></div>
+              </div>
             </div>
-            <p className="text-sm font-mono text-cyan-400">Fetching DeFiLlama Oracles & Computing Risk Vectors...</p>
+            <div className="space-y-2">
+              <p className="text-base font-medium text-cyan-400">Analyzing protocol with live DeFiLlama data...</p>
+              <p className="text-xs font-mono text-slate-500">Estimated time: ~3-5 seconds</p>
+            </div>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm text-center print:hidden">
-            {error}
+          <div className="mb-6 p-4 bg-red-950 border-2 border-red-500 rounded-xl text-red-500 text-sm flex justify-between items-center shadow-lg shadow-red-500/20 print:hidden font-medium">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <span>{error}</span>
+            </div>
+            <button onClick={() => setError("")} className="text-red-500 hover:text-red-400 hover:bg-red-900/50 p-1.5 rounded-lg transition-colors font-bold">
+              ✕
+            </button>
           </div>
         )}
 
@@ -509,6 +576,46 @@ export default function Home() {
                 <p className="text-xs font-mono text-rose-400">{txStatus}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {!loading && !result && !error && (
+          <div className="mt-12 bg-slate-900/50 border border-slate-800/50 rounded-3xl p-6 md:p-10 text-center shadow-xl backdrop-blur-sm print:hidden">
+            <h3 className="text-xl font-bold text-slate-200 mb-4">How CreditPulse AI Works</h3>
+            <p className="text-slate-400 text-sm mb-10 max-w-lg mx-auto">
+              Our autonomous agent analyzes smart contracts in real-time, pulling live data to compute a comprehensive risk profile before you invest.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+              <div className="flex flex-col items-center">
+                <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-400 text-2xl mb-4 border border-blue-500/20">
+                  🔍
+                </div>
+                <h4 className="text-slate-200 font-semibold mb-2">1. Analyze</h4>
+                <p className="text-slate-500 text-xs">Fetches DeFiLlama TVL, liquidity, and on-chain security metrics.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-400 text-2xl mb-4 border border-purple-500/20">
+                  🧮
+                </div>
+                <h4 className="text-slate-200 font-semibold mb-2">2. Score</h4>
+                <p className="text-slate-500 text-xs">AI agent processes vectors to output a 0-100 trust index.</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 text-2xl mb-4 border border-emerald-500/20">
+                  🔗
+                </div>
+                <h4 className="text-slate-200 font-semibold mb-2">3. Record</h4>
+                <p className="text-slate-500 text-xs">Saves an immutable proof of the audit to the Creditcoin network.</p>
+              </div>
+            </div>
+            <div className="mt-10 pt-8 border-t border-slate-800/50">
+              <p className="text-sm text-slate-400 mb-4">Try it out with a preset protocol:</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {presets.map((preset, idx) => (
+                  <button key={idx} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition border border-slate-700">{preset.name}</button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

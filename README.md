@@ -5,16 +5,28 @@
 **Autonomous Real-World Asset (RWA) Risk Assessment Platform & Decentralized Credit Scoring Infrastructure on Creditcoin**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/fedorov17808-svg/hakatons)
-[![Creditcoin Testnet](https://img.shields.io/badge/network-Creditcoin_Testnet_(CC3)-00E5FF.svg)](https://explorer.cc3-testnet.creditcoin.network)
+[![Creditcoin Testnet](https://img.shields.io/badge/network-Creditcoin_Testnet_%28CC3%29-00E5FF.svg)](https://explorer.cc3-testnet.creditcoin.network)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue.svg)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16_React_19-black.svg)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![EVM Compatible](https://img.shields.io/badge/EVM-Chain_ID_102031-orange.svg)](https://rpc.cc3-testnet.creditcoin.network)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [Live Demo](#-live-demo--contract-verification) • [Why Creditcoin?](#-why-creditcoin) • [Risk Methodology](#-risk-scoring-methodology) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [API Docs](#-api-endpoints)
 
 </div>
+
+---
+
+## ✨ Features
+
+- ✅ Real-time protocol analysis via DeFiLlama oracles
+- ✅ 6-dimensional risk scoring engine
+- ✅ On-chain risk report anchoring on Creditcoin Testnet
+- ✅ MetaMask wallet integration with auto-network switch
+- ✅ Production-grade Docker deployment
+- ✅ API key authentication & rate limiting
+- ✅ Comprehensive NatSpec-documented smart contract
 
 ---
 
@@ -69,6 +81,19 @@ Every risk report generates an on-chain transaction calling `saveRiskReport(...)
 ---
 
 ## 🏗️ Architecture
+
+### How It Works
+
+```mermaid
+graph LR
+  A[User enters<br>contract address] --> B[FastAPI Engine]
+  B --> C[DeFiLlama API]
+  C --> B
+  B --> D[6-Factor Risk Score]
+  D --> E[Display Results]
+  E --> F[Record On-Chain]
+  F --> G[Creditcoin Testnet]
+```
 
 ```
                                   ┌────────────────────────────────┐
@@ -312,54 +337,20 @@ contract CreditPulseScore {
 
 ## 🚀 Quick Start
 
-### Option 1: Docker Compose (Recommended)
-
-Run the entire full-stack system with a single command:
-
 ```bash
-# Clone the repository
+# Clone & install
 git clone https://github.com/fedorov17808-svg/hakatons.git
 cd hakatons
 
-# Start backend and frontend services
-docker compose up --build
-```
+# Backend
+cd backend && pip install -r requirements.txt
+cp ../.env.example .env  # Edit with your keys
+uvicorn main:app --reload
 
-* Frontend: `http://localhost:3000`
-* Backend API: `http://localhost:8000`
-* Interactive API Documentation: `http://localhost:8000/docs`
+# Frontend (new terminal)
+cd frontend && npm install && npm run dev
 
----
-
-### Option 2: Manual Setup
-
-#### 1. Backend Service (FastAPI)
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Start FastAPI server
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 2. Frontend Application (Next.js)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-#### 3. Smart Contracts (Hardhat)
-```bash
-cd contracts
-npm install
-cp .env.example .env
-# Add your PRIVATE_KEY in .env
-
-npx hardhat compile
-npx hardhat run scripts/deploy.ts --network creditcoin_testnet
+# Open http://localhost:3000
 ```
 
 ---
@@ -373,6 +364,27 @@ npx hardhat run scripts/deploy.ts --network creditcoin_testnet
 | `GET` | `/api/tx-status/{tx_hash}` | Polls confirmation status and block number for a given transaction hash. |
 | `GET` | `/api/health` | Healthcheck endpoint for engine availability. |
 | `GET` | `/docs` | Interactive OpenAPI / Swagger UI documentation. |
+
+### 🛠️ API Examples
+
+```bash
+# Health check
+curl GET http://localhost:8000/health
+
+# Analyze Aave V3 risk
+curl -X POST http://localhost:8000/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"}'
+
+# Record on-chain
+curl -X POST http://localhost:8000/api/record \
+  -H "X-API-Key: YOUR_API_KEY_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2", "score": 87}'
+
+# Check transaction status
+curl GET http://localhost:8000/api/tx-status/0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298
+```
 
 ---
 
