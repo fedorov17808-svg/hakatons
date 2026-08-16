@@ -2,6 +2,13 @@
 pragma solidity ^0.8.20;
 
 contract CreditPulseScore {
+    address public owner;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not authorized");
+        _;
+    }
+
     struct RiskReport {
         string assetAddress;
         uint256 overallScore;
@@ -13,7 +20,11 @@ contract CreditPulseScore {
     }
 
     mapping(string => RiskReport) public assetReports;
-    event ReportSaved(string indexed assetAddress, uint256 overallScore, address indexed verifiedBy);
+    event ReportSaved(string assetAddress, uint256 overallScore, address indexed verifiedBy);
+
+    constructor() {
+        owner = msg.sender;
+    }
 
     function saveRiskReport(
         string memory _assetAddress,
@@ -21,16 +32,16 @@ contract CreditPulseScore {
         uint256 _liquidity,
         uint256 _collateral,
         uint256 _auditScore
-    ) public {
-        assetReports[_assetAddress] = RiskReport(
-            _assetAddress,
-            _overallScore,
-            _liquidity,
-            _collateral,
-            _auditScore,
-            block.timestamp,
-            msg.sender
-        );
+    ) public onlyOwner {
+        assetReports[_assetAddress] = RiskReport({
+            assetAddress: _assetAddress,
+            overallScore: _overallScore,
+            liquidity: _liquidity,
+            collateral: _collateral,
+            auditScore: _auditScore,
+            timestamp: block.timestamp,
+            verifiedBy: msg.sender
+        });
 
         emit ReportSaved(_assetAddress, _overallScore, msg.sender);
     }
