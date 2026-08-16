@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
-import hashlib, time, urllib.request, json, math
+import hashlib, time, urllib.request, json, math, uuid
 import logging
 from web3 import Web3
 
@@ -17,6 +17,12 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address)
+
+SERVER_START_TIME = time.time()
+STATS = {
+    'total_analyses': 0,
+    'total_records': 0
+}
 
 app = FastAPI(
     title='CreditPulse AI Engine',
@@ -81,6 +87,7 @@ class AnalyzeResponse(BaseModel):
     protocol_name: str
     unverified: bool
     response_time_ms: float
+    request_id: str
 
 class RecordResponse(BaseModel):
     success: bool
@@ -91,12 +98,27 @@ def fetch_defillama_data():
     url = "https://api.llama.fi/protocols"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode())
             return data
     except Exception as e:
         logger.error(f"Error fetching DeFiLlama data: {e}")
-        return None
+        return []
+
+_protocol_cache = {'data': None, 'timestamp': 0}
+CACHE_TTL = 300  # 5 minutes
+
+def get_protocols_cached():
+    now = time.time()
+    if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL:
+        logger.info("DeFiLlama cache hit")
+        return _protocol_cache['data']
+    logger.info("DeFiLlama cache miss, fetching data")
+    data = fetch_defillama_data()
+    if data:
+        _protocol_cache['data'] = data
+        _protocol_cache['timestamp'] = now
+    return _protocol_cache['data'] if _protocol_cache['data'] else []
 
 
 # Known contract addresses → DeFiLlama slug mapping
@@ -150,6 +172,16 @@ def find_protocol(protocols, address):
 def health():
     return {"status": "ok"}
 
+@app.get("/api/stats", tags=['Health'])
+def get_stats():
+    now = time.time()
+    return {
+        'total_analyses': STATS['total_analyses'],
+        'total_records': STATS['total_records'],
+        'cache_status': 'warm' if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL else 'cold',
+        'uptime_seconds': now - SERVER_START_TIME
+    }
+
 @app.get("/api/health", tags=['Health'])
 def api_health():
     return {"status": "ok"}
@@ -163,10 +195,11 @@ def api_analyze(request: Request, req: AnalyzeRequest):
     return process_analysis(req.address)
 
 def process_analysis(address: str):
+    STATS['total_analyses'] += 1
     start_time = time.time()
     addr_hash = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
     
-    protocols = fetch_defillama_data()
+    protocols = get_protocols_cached()
     protocol = find_protocol(protocols, address)
     
     market_benchmark = 0
@@ -261,6 +294,10 @@ def process_analysis(address: str):
     else:
         verdict = 'CRITICAL RISK — Not recommended for investment'
         
+    response_time_ms = int((time.time() - start_time) * 1000)
+    req_id = str(uuid.uuid4())[:8]
+    logger.info(f"Analyze request for {address} processed in {response_time_ms}ms (ID: {req_id})")
+    
     return {
         "score": overall,
         "liquidity": liquidity,
@@ -274,7 +311,8 @@ def process_analysis(address: str):
         "market_benchmark": market_benchmark,
         "protocol_name": protocol_name,
         "unverified": not bool(protocol),
-        "response_time_ms": int((time.time() - start_time) * 1000)
+        "response_time_ms": response_time_ms,
+        "request_id": req_id
     }
 
 # --- Blockchain recording ---
@@ -311,6 +349,7 @@ def api_record(request: Request, req: RecordRequest, api_key: str = Depends(veri
     return process_record(req)
 
 def process_record(req: RecordRequest):
+    STATS['total_records'] += 1
     if not PRIVATE_KEY:
         raise HTTPException(status_code=500, detail="Server misconfiguration: missing private key")
     try:
@@ -331,10 +370,13 @@ def process_record(req: RecordRequest):
         
         signed = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
+        
+        logger.info(f"Record request for {req.address}: tx hash {tx_hash_hex}")
         
         return {
             "success": True,
-            "txHash": "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex(),
+            "txHash": tx_hash_hex,
             "status": "pending",
         }
     except Exception as e:

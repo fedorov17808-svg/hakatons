@@ -292,6 +292,10 @@ export default function Home() {
         .animate-gradient-xy {
           animation: gradient-xy 3s ease infinite;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-gradient-xy { animation: none !important; }
+          * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+        }
       `}</style>
       {/* Header */}
       <header className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center border-b border-slate-800 pb-6 mb-10 gap-4 print:hidden">
@@ -310,7 +314,8 @@ export default function Home() {
             href={`${API_URL}/docs`}
             target="_blank"
             rel="noreferrer"
-            className="text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 rounded-lg transition font-mono hidden md:inline-block"
+            aria-label="View API Documentation"
+            className="text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 rounded-lg transition font-mono hidden md:inline-block focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
           >
             ⚡ API Docs (/docs) ↗
           </a>
@@ -328,8 +333,10 @@ export default function Home() {
             </div>
           ) : (
             <button
+              id="btn-connect-wallet"
+              aria-label="Connect MetaMask wallet"
               onClick={connectWallet}
-              className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2"
+              className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
             >
               Connect Wallet
             </button>
@@ -353,16 +360,21 @@ export default function Home() {
           <form onSubmit={(e) => handleAnalyze(e)} className="mb-3">
             <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-sm">
               <input
+                id="input-address"
+                aria-label="Enter Ethereum contract address"
                 type="text"
                 placeholder="Enter Asset / Smart Contract Address (0x...)"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAnalyze(e); } }}
                 className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none text-white placeholder-slate-500 font-mono"
               />
               <button
+                id="btn-analyze"
+                aria-label="Analyze DeFi protocol risk"
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50"
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
                 {loading ? "Analyzing..." : "Analyze Asset"}
               </button>
@@ -377,8 +389,9 @@ export default function Home() {
                 <button
                   key={idx}
                   type="button"
+                  aria-label={`Analyze ${preset.name}`}
                   onClick={() => handleAnalyze(undefined, preset.address)}
-                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition font-medium"
+                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition font-medium focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                 >
                   {preset.name}
                 </button>
@@ -391,8 +404,9 @@ export default function Home() {
                 {history.map((h, i) => (
                   <button
                     key={i}
+                    aria-label={`Analyze history address ${h}`}
                     onClick={() => handleAnalyze(undefined, h)}
-                    className="font-mono hover:text-cyan-400 text-slate-400 underline"
+                    className="font-mono hover:text-cyan-400 text-slate-400 underline focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                   >
                     {h.slice(0, 6)}...
                   </button>
@@ -423,7 +437,7 @@ export default function Home() {
               <span className="text-xl">⚠️</span>
               <span>{error}</span>
             </div>
-            <button onClick={() => setError("")} className="text-red-500 hover:text-red-400 hover:bg-red-900/50 p-1.5 rounded-lg transition-colors font-bold">
+            <button onClick={() => setError("")} aria-label="Close error" className="text-red-500 hover:text-red-400 hover:bg-red-900/50 p-1.5 rounded-lg transition-colors font-bold focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">
               ✕
             </button>
           </div>
@@ -431,7 +445,8 @@ export default function Home() {
 
         {/* Results Dashboard */}
         {!loading && result && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300 print:text-black print:bg-white">
+          <section id="section-results" aria-labelledby="results-heading" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300 print:text-black print:bg-white">
+            <h2 id="results-heading" className="sr-only">Analysis Results</h2>
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Asset Category</span>
@@ -449,7 +464,7 @@ export default function Home() {
                     {getScoreText(result.score || 0)}
                   </span>
                 </div>
-                {result.market_benchmark > 0 && (
+                {typeof result.market_benchmark === 'number' && result.market_benchmark > 0 && (
                   <p className="text-xs font-mono text-slate-400 mt-2">Market TVL: ${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</p>
                 )}
               </div>
@@ -467,7 +482,7 @@ export default function Home() {
                 </ResponsiveContainer>
               </div>
 
-              <div className="space-y-3">
+              <div id="section-breakdown" className="space-y-3">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:text-gray-600">Detailed Breakdown</h3>
                 <div>
                   <div className="flex justify-between text-xs mb-1">
@@ -542,15 +557,19 @@ export default function Home() {
             {/* Actions */}
             <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
               <button
+                id="btn-record"
+                aria-label="Record risk score on Creditcoin blockchain"
                 onClick={recordOnChain}
                 disabled={txStep > 0 && txStep < 3}
-                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
               >
                 🔗 Record Score Proof On-Chain
               </button>
               <button
+                id="btn-export"
+                aria-label="Export audit report as PDF"
                 onClick={() => window.print()}
-                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition border border-slate-700"
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
                 📥 Export Audit Report
               </button>
@@ -579,12 +598,13 @@ export default function Home() {
                       <div className="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-lg border border-slate-800/80 w-fit">
                         <span className="text-xs text-slate-400 font-mono">Tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
                         <button 
+                          aria-label="Copy transaction hash"
                           onClick={() => {
                             navigator.clipboard.writeText(txHash);
                             setIsCopied(true);
                             setTimeout(() => setIsCopied(false), 2000);
                           }}
-                          className="text-slate-400 hover:text-cyan-400 transition ml-2"
+                          className="text-slate-400 hover:text-cyan-400 transition ml-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                           title="Copy to clipboard"
                         >
                           {isCopied ? "✓" : "📋"}
@@ -595,7 +615,8 @@ export default function Home() {
                         href={`${EXPLORER_URL}${txHash}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition border border-slate-700 shadow-sm w-fit"
+                        aria-label="View transaction on Creditcoin block explorer"
+                        className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition border border-slate-700 shadow-sm w-fit focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       >
                         View on Explorer ↗
                       </a>
@@ -610,7 +631,7 @@ export default function Home() {
                 <p className="text-xs font-mono text-rose-400">{txStatus}</p>
               </div>
             )}
-          </div>
+          </section>
         )}
 
         {!loading && !result && !error && (
@@ -646,7 +667,7 @@ export default function Home() {
               <p className="text-sm text-slate-400 mb-4">Try it out with a preset protocol:</p>
               <div className="flex flex-wrap justify-center gap-3">
                 {presets.map((preset, idx) => (
-                  <button key={idx} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition border border-slate-700">{preset.name}</button>
+                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
                 ))}
               </div>
             </div>

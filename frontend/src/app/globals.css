@@ -27,6 +27,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
@@ -35,11 +38,20 @@ body {
 }
 
 @media print {
-  body {
-    background: white;
-    color: black;
-  }
-  .no-print {
-    display: none !important;
-  }
+  body { background: white !important; color: black !important; }
+  .no-print, .print\:hidden { display: none !important; }
+  * { box-shadow: none !important; text-shadow: none !important; }
 }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+@media (max-width: 640px) {
+  body { font-size: 14px; }
+  .recharts-wrapper { font-size: 10px !important; }
+  button, a[role='button'] { min-height: 44px; }
+}
+
+:focus-visible { outline: 2px solid #06b6d4; outline-offset: 2px; }
