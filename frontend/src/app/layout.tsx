@@ -46,6 +46,12 @@ export default function RootLayout({
         <meta name="theme-color" content="#020617" />
       </head>
       <body className={`${inter.className} antialiased`}>
+        <noscript>
+          <div style={{ padding: '2rem', textAlign: 'center', color: 'white', background: '#020617' }}>
+            <h1>CreditPulse AI requires JavaScript</h1>
+            <p>Please enable JavaScript in your browser to use this application.</p>
+          </div>
+        </noscript>
         {children}
       </body>
     </html>

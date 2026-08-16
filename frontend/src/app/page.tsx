@@ -68,6 +68,24 @@ export default function Home() {
   const [isCopied, setIsCopied] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking'|'online'|'offline'>('checking');
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   useEffect(() => {
     if (!result) return;
     let current = 0;
@@ -139,7 +157,7 @@ export default function Home() {
     } catch (switchErr: unknown) {
       // Chain doesn't exist - add it
       const err = switchErr as { code?: number };
-      if (err.code === 4902 || err.code === -32603) {
+      if (err.code === 4902 || err.code === -32603 || typeof err.code === 'undefined') {
         try {
           const ethWindow = window as unknown as { ethereum: { request: (args: unknown) => Promise<unknown> } };
           await ethWindow.ethereum.request({
@@ -253,7 +271,7 @@ export default function Home() {
     setTxBlockNumber(null);
     
     try {
-      const response = await fetch(`/api/record`, {
+      const response = await fetch(`${API_URL}/api/record`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
@@ -645,11 +663,7 @@ export default function Home() {
                         <span className="text-xs text-slate-400 font-mono">Tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
                         <button 
                           aria-label="Copy transaction hash"
-                          onClick={() => {
-                            navigator.clipboard.writeText(txHash);
-                            setIsCopied(true);
-                            setTimeout(() => setIsCopied(false), 2000);
-                          }}
+                          onClick={() => copyToClipboard(txHash)}
                           className="text-slate-400 hover:text-cyan-400 transition ml-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                           title="Copy to clipboard"
                         >
