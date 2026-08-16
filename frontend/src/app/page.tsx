@@ -4,15 +4,10 @@ import React, { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
 
-const CONTRACT_ADDRESS = "0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b";
-const CONTRACT_ABI = [
-  "function saveRiskReport(string memory _assetAddress, uint256 _overallScore, uint256 _liquidity, uint256 _collateral, uint256 _auditScore) public",
-  "function getReport(string memory _assetAddress) public view returns (tuple(string assetAddress, uint256 overallScore, uint256 liquidity, uint256 collateral, uint256 auditScore, uint256 timestamp, address verifiedBy))"
-];
-
 const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "demo123";
+const METAMASK_DOWNLOAD_URL = "https://metamask.io/download/";
 
 interface RiskResult {
   rwa_type?: string;
@@ -71,12 +66,21 @@ export default function Home() {
   const [txStep, setTxStep] = useState<number>(0);
   const [txBlockNumber, setTxBlockNumber] = useState<number | null>(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking'|'online'|'offline'>('checking');
 
   useEffect(() => {
-    const saved = localStorage.getItem("cp_history");
-    if (saved) {
-      try { setHistory(JSON.parse(saved)); } catch (e) {}
-    }
+    fetch(`${API_URL}/health`)
+      .then(r => r.ok ? setBackendStatus('online') : setBackendStatus('offline'))
+      .catch(() => setBackendStatus('offline'));
+  }, []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cp_history");
+      if (saved) {
+        try { setHistory(JSON.parse(saved)); } catch (e) {}
+      }
+    } catch (err) {}
   }, []);
 
   useEffect(() => {
@@ -136,7 +140,7 @@ export default function Home() {
             }]
           });
         } catch (addErr) {
-          console.error('Failed to add network:', addErr);
+          // Error adding network
         }
       }
     }
@@ -152,7 +156,7 @@ export default function Home() {
         try {
           await switchToCreditcoin();
         } catch (switchErr) {
-          console.warn('Network switch skipped:', switchErr);
+          // Network switch skipped
         }
       } catch (err: unknown) {
         const errorObj = err as { code?: number };
@@ -161,10 +165,9 @@ export default function Home() {
         } else {
           setError("Failed to connect wallet. Please make sure MetaMask is unlocked.");
         }
-        console.error('Wallet connection error:', err);
       }
     } else {
-      window.open('https://metamask.io/download/', '_blank');
+      window.open(METAMASK_DOWNLOAD_URL, '_blank');
     }
   };
 
@@ -181,36 +184,52 @@ export default function Home() {
     setTxStep(0);
     setTxBlockNumber(null);
 
-    try {
-      const response = await fetch(`${API_URL}/api/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: targetAddr }),
-      });
+    let retries = 1;
+    let lastError: unknown;
+    while (retries >= 0) {
+      try {
+        const response = await fetch(`${API_URL}/api/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: targetAddr }),
+        });
 
-      if (!response.ok) throw new Error("Backend connection failed");
-      
-      const data = await response.json();
-      const radarData = [
-        { subject: 'Liquidity', A: data.liquidity || 0 },
-        { subject: 'Collateral', A: data.collateral || 0 },
-        { subject: 'Security', A: data.security || 0 },
-        { subject: 'Audit', A: data.audit || 0 },
-        { subject: 'Volatility', A: data.volatility_score || 0 },
-        { subject: 'Governance', A: data.governance || 0 }
-      ];
-      setResult({ ...data, radarData });
-      playSuccessSound();
+        if (!response.ok) throw new Error("Backend connection failed");
+        
+        const data = await response.json();
+        const radarData = [
+          { subject: 'Liquidity', A: data.liquidity || 0 },
+          { subject: 'Collateral', A: data.collateral || 0 },
+          { subject: 'Security', A: data.security || 0 },
+          { subject: 'Audit', A: data.audit || 0 },
+          { subject: 'Volatility', A: data.volatility_score || 0 },
+          { subject: 'Governance', A: data.governance || 0 }
+        ];
+        setResult({ ...data, radarData });
+        playSuccessSound();
 
-      // Update LocalHistory
-      const updated = Array.from(new Set([targetAddr, ...history])).slice(0, 3);
-      setHistory(updated);
-      localStorage.setItem("cp_history", JSON.stringify(updated));
-    } catch (err) {
-      setError("Failed to connect to CreditPulse AI Engine.");
-    } finally {
-      setLoading(false);
+        // Update LocalHistory
+        const updated = Array.from(new Set([targetAddr, ...history])).slice(0, 3);
+        setHistory(updated);
+        try {
+          localStorage.setItem("cp_history", JSON.stringify(updated));
+        } catch(e) {}
+        
+        setLoading(false);
+        return;
+      } catch (err: unknown) {
+        lastError = err;
+        retries--;
+        if (retries >= 0) await new Promise(r => setTimeout(r, 2000));
+      }
     }
+
+    if (lastError instanceof TypeError && lastError.message.includes('fetch')) {
+      setError('Cannot reach the analysis engine. Please ensure the backend is running on port 8000.');
+    } else {
+      setError('Analysis failed. Please check the address and try again.');
+    }
+    setLoading(false);
   };
 
   const recordOnChain = async () => {
@@ -266,13 +285,16 @@ export default function Home() {
         setTxStatus(`Step 3/3: ✅ Confirmed in block #${blockNum} on Creditcoin Testnet!`);
         playSuccessSound();
       } else {
-        setTxStep(0);
-        setTxStatus("❌ Transaction confirmation timeout. Please check explorer.");
+        setTxStatus(`Transaction submitted but confirmation is taking longer than expected. Your transaction hash is ${data.txHash} — you can check its status on the explorer.`);
       }
     } catch (err: unknown) {
       setTxStep(0);
-      const e = err as Error;
-      setTxStatus("❌ " + (e?.message || "Could not process transaction. Please try again."));
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setTxStatus("❌ Cannot reach the analysis engine. Please ensure the backend is running on port 8000.");
+      } else {
+        const e = err as Error;
+        setTxStatus("❌ " + (e?.message || "Could not process transaction. Please try again."));
+      }
     }
   };
 
@@ -310,6 +332,34 @@ export default function Home() {
           </div>
         </div>
         <div className="flex flex-wrap justify-center items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner text-xs font-mono font-medium hidden sm:flex">
+            {backendStatus === 'checking' && (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500"></span>
+                </span>
+                <span className="text-slate-400">Checking...</span>
+              </>
+            )}
+            {backendStatus === 'online' && (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                </span>
+                <span className="text-emerald-400">Engine Online</span>
+              </>
+            )}
+            {backendStatus === 'offline' && (
+              <>
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+                </span>
+                <span className="text-red-400">Engine Offline</span>
+              </>
+            )}
+          </div>
           <a
             href={`${API_URL}/docs`}
             target="_blank"

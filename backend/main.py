@@ -1,20 +1,27 @@
+import hashlib
+import json
+import logging
+import math
 import os
-from dotenv import load_dotenv
-load_dotenv()
 import re
-from fastapi import FastAPI, HTTPException, Request, Depends, Header
+import time
+import urllib.request
+import uuid
+
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
-import hashlib, time, urllib.request, json, math, uuid
-import logging
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from web3 import Web3
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -45,6 +52,11 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+@app.options("/api/{rest_of_path:path}")
+async def preflight_handler(request: Request, rest_of_path: str):
+    return JSONResponse(content="OK")
+
+
 @app.middleware("http")
 async def limit_upload_size(request: Request, call_next):
     if request.method == "POST":
@@ -55,11 +67,13 @@ async def limit_upload_size(request: Request, call_next):
 
 @app.on_event("startup")
 def startup_event():
+    """Verify essential environment variables on startup."""
     pk = os.getenv("PRIVATE_KEY")
     if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
         raise RuntimeError("Invalid or missing PRIVATE_KEY")
 
 async def verify_api_key(x_api_key: str = Header(default=None)):
+    """Verify the provided API key against the environment variable."""
     expected = os.getenv('API_KEY')
     if expected and x_api_key != expected:
         raise HTTPException(status_code=401, detail='Invalid API Key')
@@ -69,6 +83,8 @@ class AnalyzeRequest(BaseModel):
 
     @validator('address')
     def validate_address(cls, v):
+        if len(v) != 42:
+            raise ValueError('Address must be exactly 42 characters')
         if not re.match(r"^(0x|0X)[a-fA-F0-9]{40}$", v):
             raise ValueError('Invalid Ethereum address')
         return v
@@ -95,6 +111,7 @@ class RecordResponse(BaseModel):
     status: str
 
 def fetch_defillama_data():
+    """Fetch protocol data from the DeFiLlama API."""
     url = "https://api.llama.fi/protocols"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -109,6 +126,7 @@ _protocol_cache = {'data': None, 'timestamp': 0}
 CACHE_TTL = 300  # 5 minutes
 
 def get_protocols_cached():
+    """Retrieve DeFiLlama protocol data from cache or fetch if expired."""
     now = time.time()
     if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL:
         logger.info("DeFiLlama cache hit")
@@ -136,6 +154,7 @@ KNOWN_CONTRACTS = {
 }
 
 def find_protocol(protocols, address):
+    """Find a specific protocol in the DeFiLlama data by smart contract address."""
     if not protocols:
         return None
     addr_lower = address.lower()
@@ -170,10 +189,12 @@ def find_protocol(protocols, address):
 
 @app.get("/health", tags=['Health'])
 def health():
+    """Return the health status of the API."""
     return {"status": "ok"}
 
 @app.get("/api/stats", tags=['Health'])
 def get_stats():
+    """Return API usage statistics and cache status."""
     now = time.time()
     return {
         'total_analyses': STATS['total_analyses'],
@@ -184,6 +205,7 @@ def get_stats():
 
 @app.get("/api/health", tags=['Health'])
 def api_health():
+    """Return the health status of the API."""
     return {"status": "ok"}
 
 @app.post("/api/analyze", tags=['Analysis'], response_model=AnalyzeResponse)
@@ -195,11 +217,33 @@ def api_analyze(request: Request, req: AnalyzeRequest):
     return process_analysis(req.address)
 
 def process_analysis(address: str):
+    """Process risk analysis for a given smart contract address."""
     STATS['total_analyses'] += 1
     start_time = time.time()
+    
+    if address.lower() == "0x" + "0" * 40:
+        return {
+            "score": 0, "liquidity": 0, "collateral": 0, "security": 0,
+            "volatility_score": 0, "governance": 0, "audit": 0,
+            "rwa_type": "Unknown", "verdict": "INVALID — Zero address detected",
+            "market_benchmark": 0.0, "protocol_name": "Unknown",
+            "unverified": True, "response_time_ms": int((time.time() - start_time) * 1000),
+            "request_id": str(uuid.uuid4())[:8]
+        }
+
     addr_hash = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
     
     protocols = get_protocols_cached()
+    if protocols == []:
+        return {
+            "score": 0, "liquidity": 0, "collateral": 0, "security": 0,
+            "volatility_score": 0, "governance": 0, "audit": 0,
+            "rwa_type": "Unknown", "verdict": "UNAVAILABLE — Oracle data empty",
+            "market_benchmark": 0.0, "protocol_name": "Unknown",
+            "unverified": True, "response_time_ms": int((time.time() - start_time) * 1000),
+            "request_id": str(uuid.uuid4())[:8]
+        }
+    
     protocol = find_protocol(protocols, address)
     
     market_benchmark = 0
@@ -281,7 +325,15 @@ def process_analysis(address: str):
         governance = 10
         audit = 10
 
+    liquidity = max(0, min(100, liquidity))
+    collateral = max(0, min(100, collateral))
+    security = max(0, min(100, security))
+    volatility_score = max(0, min(100, volatility_score))
+    governance = max(0, min(100, governance))
+    audit = max(0, min(100, audit))
+
     overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
+    overall = max(0, min(100, overall))
     
     if overall >= 85:
         verdict = 'LOW RISK — Institutional grade'
@@ -318,6 +370,10 @@ def process_analysis(address: str):
 # --- Blockchain recording ---
 RPC_URL = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+
+_recent_records = {}
+RECORD_COOLDOWN = 30
+
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b")
 CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"string","name":"_assetAddress","type":"string"},{"internalType":"uint256","name":"_overallScore","type":"uint256"},{"internalType":"uint256","name":"_liquidity","type":"uint256"},{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_auditScore","type":"uint256"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
 
@@ -330,6 +386,8 @@ class RecordRequest(BaseModel):
 
     @validator('address')
     def validate_address(cls, v):
+        if len(v) != 42:
+            raise ValueError('Address must be exactly 42 characters')
         if not re.match(r"^(0x|0X)[a-fA-F0-9]{40}$", v):
             raise ValueError('Invalid Ethereum address')
         return v
@@ -349,7 +407,14 @@ def api_record(request: Request, req: RecordRequest, api_key: str = Depends(veri
     return process_record(req)
 
 def process_record(req: RecordRequest):
+    """Process recording a risk score proof on-chain."""
     STATS['total_records'] += 1
+
+    now = time.time()
+    if req.address in _recent_records and (now - _recent_records[req.address]) < RECORD_COOLDOWN:
+        raise HTTPException(status_code=429, detail="Too Many Requests")
+    _recent_records[req.address] = now
+
     if not PRIVATE_KEY:
         raise HTTPException(status_code=500, detail="Server misconfiguration: missing private key")
     try:
@@ -386,7 +451,7 @@ def process_record(req: RecordRequest):
 @app.get("/api/tx-status/{tx_hash}", tags=['Recording'])
 def get_tx_status(tx_hash: str):
     """
-    Poll the confirmation status of a previously submitted transaction
+    Poll the confirmation status of a previously submitted transaction.
     """
     if not re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
         raise HTTPException(status_code=400, detail="Invalid tx hash")
