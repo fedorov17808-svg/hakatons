@@ -1,7 +1,10 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import re
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
 import hashlib, time, urllib.request, json, math
 import logging
@@ -26,6 +29,24 @@ app.add_middleware(
     allow_methods=["*"], 
     allow_headers=["*"]
 )
+
+@app.middleware("http")
+async def limit_upload_size(request: Request, call_next):
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > 1024 * 1024:
+            return JSONResponse(status_code=413, content={"detail": "Payload too large"})
+    return await call_next(request)
+
+@app.on_event("startup")
+def startup_event():
+    pk = os.getenv("PRIVATE_KEY")
+    if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
+        raise RuntimeError("Invalid or missing PRIVATE_KEY")
+
+async def verify_api_key(x_api_key: str = Header(...)):
+    if x_api_key != os.getenv("API_KEY"):
+        raise HTTPException(status_code=401, detail="Invalid API Key")
 
 class AnalyzeRequest(BaseModel):
     address: str
@@ -193,15 +214,21 @@ class RecordRequest(BaseModel):
         if not re.match(r"^0x[a-fA-F0-9]{40}$", v):
             raise ValueError('Invalid Ethereum address')
         return v
+        
+    @validator('score', 'liquidity', 'collateral', 'audit')
+    def check_bounds(cls, v):
+        if not (0 <= v <= 100):
+            raise ValueError('Value must be between 0 and 100')
+        return v
 
 @app.post("/record")
 @limiter.limit("2/minute")
-def record(request: Request, req: RecordRequest):
+def record(request: Request, req: RecordRequest, api_key: str = Depends(verify_api_key)):
     return process_record(req)
 
 @app.post("/api/record")
 @limiter.limit("2/minute")
-def api_record(request: Request, req: RecordRequest):
+def api_record(request: Request, req: RecordRequest, api_key: str = Depends(verify_api_key)):
     return process_record(req)
 
 def process_record(req: RecordRequest):
@@ -232,11 +259,14 @@ def process_record(req: RecordRequest):
             "status": "pending",
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f'Record transaction failed: {e}')
+        raise HTTPException(status_code=500, detail='Transaction failed. Please try again.')
 
 @app.get("/tx-status/{tx_hash}")
 @app.get("/api/tx-status/{tx_hash}")
 def get_tx_status(tx_hash: str):
+    if not re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
+        raise HTTPException(status_code=400, detail="Invalid tx hash")
     try:
         w3 = Web3(Web3.HTTPProvider(RPC_URL))
         try:
@@ -247,4 +277,5 @@ def get_tx_status(tx_hash: str):
         except Exception:
             return {"status": "pending"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f'Get tx status failed: {e}')
+        raise HTTPException(status_code=500, detail='Failed to fetch transaction status')

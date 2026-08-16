@@ -128,6 +128,7 @@ export default function Home() {
         { subject: 'Security', A: data.security || 0 },
         { subject: 'Governance', A: data.governance || 0 },
         { subject: 'Audit', A: data.audit || 0 },
+        { subject: 'Volatility', A: data.volatility_score || 0 }
       ];
       setResult({ ...data, radarData });
       playSuccessSound();
@@ -144,6 +145,7 @@ export default function Home() {
   };
 
   const recordOnChain = async () => {
+    if (!result) return;
     setTxStep(1);
     setTxStatus("Step 1/3: Submitting transaction...");
     setTxHash(null);
@@ -338,10 +340,21 @@ export default function Home() {
               <div>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Asset Category</span>
                 <p className="text-lg font-semibold text-slate-200 print:text-black">{result.rwa_type}</p>
+                {result.protocol_name && result.protocol_name !== 'Unknown' && (
+                  <p className='text-sm text-cyan-400 font-mono mt-1'>Protocol: {result.protocol_name}</p>
+                )}
+                {result.unverified && (
+                  <div className='mt-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-max'>
+                    <span className='text-xs text-amber-400 font-medium'>⚠️ Unverified Protocol — Limited Data Available</span>
+                  </div>
+                )}
               </div>
               <div className="text-right">
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
                 <p className="text-3xl font-black text-emerald-400 print:text-emerald-700">{result.score}/100</p>
+                {result.market_benchmark > 0 && (
+                  <p className="text-xs font-mono text-slate-400 mt-1">Market TVL: ${(result.market_benchmark > 1000000 ? result.market_benchmark / 1e9 : result.market_benchmark).toFixed(2)}B</p>
+                )}
               </div>
             </div>
 
@@ -398,6 +411,26 @@ export default function Home() {
                     <div className="bg-emerald-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.audit}%` }}></div>
                   </div>
                 </div>
+
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400 print:text-gray-700">Volatility Index</span>
+                    <span className="text-amber-400 font-mono print:text-black">{result.volatility_score || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2">
+                    <div className="bg-amber-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.volatility_score || 0}%` }}></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-400 print:text-gray-700">Governance Score</span>
+                    <span className="text-rose-400 font-mono print:text-black">{result.governance || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2">
+                    <div className="bg-rose-500 h-2 rounded-full transition-all duration-500" style={{ width: `${result.governance || 0}%` }}></div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -413,7 +446,9 @@ export default function Home() {
             <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
               <button
                 onClick={recordOnChain}
-                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20"
+                disabled={!account}
+                title={!account ? "Connect wallet first" : undefined}
+                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔗 Record Score Proof On-Chain
               </button>
@@ -482,6 +517,10 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <footer className='max-w-4xl mx-auto mt-16 pt-6 border-t border-slate-800 text-center print:hidden'>
+        <p className='text-xs text-slate-600'>CreditPulse AI — Built on Creditcoin • Powered by DeFiLlama Oracles</p>
+      </footer>
     </main>
   );
 }
