@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 /// @title CreditPulse AI Risk Scoring Contract
 /// @author CreditPulse AI Team
@@ -11,7 +11,7 @@ contract CreditPulseScore {
     address public owner;
     uint256 public reportCount;
     
-    mapping(string => uint256) public assetReportCount;
+    mapping(address => uint256) public assetReportCount;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
@@ -19,37 +19,42 @@ contract CreditPulseScore {
     }
 
     struct RiskReport {
-        string assetAddress;
-        uint256 overallScore;
-        uint256 liquidity;
-        uint256 collateral;
-        uint256 auditScore;
-        uint256 timestamp;
+        address assetAddress;
+        uint8 overallScore;
+        uint8 liquidity;
+        uint8 collateral;
+        uint8 auditScore;
+        uint40 timestamp;
         address verifiedBy;
     }
 
-    mapping(string => RiskReport) public assetReports;
+    mapping(address => RiskReport) public assetReports;
     
     event ReportSaved(
-        string assetAddress, 
-        uint256 overallScore, 
-        uint256 liquidity, 
-        uint256 collateral, 
-        uint256 auditScore, 
+        address indexed assetAddress, 
+        uint8 overallScore, 
+        uint8 liquidity, 
+        uint8 collateral, 
+        uint8 auditScore, 
         address indexed verifiedBy, 
         uint256 timestamp
     );
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
     /// @notice Initializes the contract and sets the owner
     constructor() {
         owner = msg.sender;
+        emit OwnershipTransferred(address(0), msg.sender);
     }
 
     /// @notice Transfers ownership of the contract
     /// @param newOwner Address of the new owner
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Invalid new owner");
+        address oldOwner = owner;
         owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
     }
 
     /// @notice Saves a risk report for an asset
@@ -60,13 +65,13 @@ contract CreditPulseScore {
     /// @param _collateral The collateral quality score
     /// @param _auditScore The audit status score
     function saveRiskReport(
-        string memory _assetAddress,
-        uint256 _overallScore,
-        uint256 _liquidity,
-        uint256 _collateral,
-        uint256 _auditScore
+        address _assetAddress,
+        uint8 _overallScore,
+        uint8 _liquidity,
+        uint8 _collateral,
+        uint8 _auditScore
     ) public onlyOwner {
-        require(bytes(_assetAddress).length > 0, "Empty asset address");
+        require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_liquidity <= 100, "Liquidity exceeds maximum");
         require(_collateral <= 100, "Collateral exceeds maximum");
@@ -78,7 +83,7 @@ contract CreditPulseScore {
             liquidity: _liquidity,
             collateral: _collateral,
             auditScore: _auditScore,
-            timestamp: block.timestamp,
+            timestamp: uint40(block.timestamp),
             verifiedBy: msg.sender
         });
         
@@ -91,7 +96,7 @@ contract CreditPulseScore {
     /// @notice Retrieves the latest risk report for an asset
     /// @param _assetAddress The address of the asset
     /// @return RiskReport The latest risk report for the given asset
-    function getReport(string memory _assetAddress) public view returns (RiskReport memory) {
+    function getRiskReport(address _assetAddress) public view returns (RiskReport memory) {
         return assetReports[_assetAddress];
     }
     
@@ -99,5 +104,12 @@ contract CreditPulseScore {
     /// @return The total number of reports
     function getReportCount() external view returns (uint256) { 
         return reportCount; 
+    }
+
+    /// @notice Retrieves the timestamp of the latest report for an asset
+    /// @param _assetAddress The address of the asset
+    /// @return The timestamp of the latest report
+    function getLatestReportTimestamp(address _assetAddress) external view returns (uint256) {
+        return assetReports[_assetAddress].timestamp;
     }
 }

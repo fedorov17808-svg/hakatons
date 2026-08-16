@@ -198,7 +198,7 @@ export default function Home() {
         }
       }
     } else {
-      setError('INFO:No Web3 wallet detected — that\'s OK! Wallet is optional. All features work without it.');
+      setError('INFO: No Web3 wallet detected. You can still use all features without a wallet.');
     }
   };
 
@@ -256,9 +256,9 @@ export default function Home() {
     }
 
     if (lastError instanceof TypeError && lastError.message.includes('fetch')) {
-      setError('Cannot reach the analysis engine. Please ensure the backend is running on port 8000.');
+      setError('Unable to connect to the analysis engine. Please check your network connection or try again later.');
     } else {
-      setError('Analysis failed. Please check the address and try again.');
+      setError('Analysis failed. Please check the contract address and try again.');
     }
     setLoading(false);
   };
@@ -315,15 +315,15 @@ export default function Home() {
         setTxStatus(`Step 3/3: ✅ Confirmed in block #${blockNum} on Creditcoin Testnet!`);
         playSuccessSound();
       } else {
-        setTxStatus(`Transaction submitted but confirmation is taking longer than expected. Your transaction hash is ${data.txHash} — you can check its status on the explorer.`);
+        setTxStatus(`Transaction submitted, but confirmation is taking longer than expected. You can check the status on the explorer using your transaction hash: ${data.txHash}`);
       }
     } catch (err: unknown) {
       setTxStep(0);
       if (err instanceof TypeError && err.message.includes('fetch')) {
-        setTxStatus("❌ Cannot reach the analysis engine. Please ensure the backend is running on port 8000.");
+        setTxStatus("❌ Unable to connect to the analysis engine. Please try again later.");
       } else {
         const e = err as Error;
-        setTxStatus("❌ " + (e?.message || "Could not process transaction. Please try again."));
+        setTxStatus("❌ " + (e?.message || "Could not process the transaction. Please try again."));
       }
     }
   };
@@ -350,7 +350,8 @@ export default function Home() {
         }
         .animate-reveal { animation: fadeSlideUp 0.5s ease-out forwards; }
         @keyframes fillBar {
-          from { width: 0%; }
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
         }
         @keyframes dots {
           0%, 20% { content: '.'; }
@@ -381,7 +382,7 @@ export default function Home() {
             ⚡
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-blue-400 to-indigo-400 bg-clip-text text-transparent animate-gradient-xy bg-[length:400%_400%]">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent animate-gradient-xy bg-[length:400%_400%]">
               CreditPulse AI
             </h1>
           </div>
@@ -420,7 +421,7 @@ export default function Home() {
             target="_blank"
             rel="noreferrer"
             aria-label="View API Documentation"
-            className="text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 rounded-lg transition font-mono hidden md:inline-block focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+            className="text-xs px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-400 border border-slate-800 rounded-lg transition-all duration-200 ease-out active:scale-95 font-mono hidden md:inline-block focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
           >
             ⚡ API Docs (/docs) ↗
           </a>
@@ -441,7 +442,7 @@ export default function Home() {
               id="btn-connect-wallet"
               aria-label="Connect Web3 wallet (MetaMask, Coinbase, Trust, etc.)"
               onClick={connectWallet}
-              className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+              className="px-5 py-2 md:py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-medium rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-600 text-cyan-400 shadow-lg flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
             >
               🔗 Connect Wallet
             </button>
@@ -452,11 +453,11 @@ export default function Home() {
       {/* Main Section */}
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-10 print:hidden">
-          <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
-            Autonomous RWA Risk Assessment
+          <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            Autonomous Risk Assessment
           </h2>
           <p className="text-slate-400 text-base">
-            Evaluate Real-World Asset risk scores instantly using decentralized credit intelligence & AI agents.
+            Instantly evaluate smart contract and protocol risk using decentralized credit intelligence and AI.
           </p>
         </div>
 
@@ -468,7 +469,7 @@ export default function Home() {
                 id="input-address"
                 aria-label="Enter Ethereum contract address"
                 type="text"
-                placeholder="Enter Asset / Smart Contract Address (0x...)"
+                placeholder="Enter a smart contract address (e.g., 0x...)"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAnalyze(e); } }}
@@ -479,9 +480,9 @@ export default function Home() {
                 aria-label="Analyze DeFi protocol risk"
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-medium text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
-                {loading ? "Analyzing..." : "Analyze Asset"}
+                {loading ? "Analyzing..." : "Analyze Protocol"}
               </button>
             </div>
           </form>
@@ -496,7 +497,7 @@ export default function Home() {
                   type="button"
                   aria-label={`Analyze ${preset.name}`}
                   onClick={() => handleAnalyze(undefined, preset.address)}
-                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition hover:scale-105 active:scale-95 font-medium focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition-all duration-200 ease-out hover:scale-105 active:scale-95 font-medium focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                 >
                   {preset.name}
                 </button>
@@ -511,7 +512,7 @@ export default function Home() {
                     key={i}
                     aria-label={`Analyze history address ${h}`}
                     onClick={() => handleAnalyze(undefined, h)}
-                    className="font-mono hover:text-cyan-400 text-slate-400 underline focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                    className="font-mono hover:text-cyan-400 text-slate-400 underline transition-all duration-200 ease-out active:scale-95 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                   >
                     {h.slice(0, 6)}...
                   </button>
@@ -542,7 +543,7 @@ export default function Home() {
               <span className="text-xl">{error.startsWith('INFO:') ? 'ℹ️' : '⚠️'}</span>
               <span>{error.startsWith('INFO:') ? error.slice(5) : error}</span>
             </div>
-            <button onClick={() => setError("")} aria-label="Close notification" className={`${error.startsWith('INFO:') ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/50' : 'text-red-500 hover:text-red-400 hover:bg-red-900/50'} p-1.5 rounded-lg transition-colors font-bold focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}>
+            <button onClick={() => setError("")} aria-label="Close notification" className={`${error.startsWith('INFO:') ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900/50' : 'text-red-500 hover:text-red-400 hover:bg-red-900/50'} p-1.5 rounded-lg transition-all duration-200 ease-out active:scale-95 font-bold focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}>
               ✕
             </button>
           </div>
@@ -602,8 +603,10 @@ export default function Home() {
                       <span className="text-slate-400 print:text-gray-700">{item.label}</span>
                       <span className={`${getScoreColor(item.value).text} font-mono print:text-black`}>{item.value}%</span>
                     </div>
-                    <div className="w-full bg-slate-950 rounded-full h-2">
-                      <div className={`${getScoreColor(item.value).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${item.value}%`, animation: `fillBar 0.8s ease-out forwards`, animationDelay: `${index * 0.1}s` }}></div>
+                    <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden print:bg-gray-200">
+                      <div className="h-full origin-left" style={{ width: `${item.value}%` }}>
+                        <div className={`${getScoreColor(item.value).bar} w-full h-full origin-left print:bg-gray-500`} style={{ animation: `fillBar 0.8s ease-out both`, animationDelay: `${index * 0.1}s` }}></div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -622,18 +625,18 @@ export default function Home() {
             <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
               <button
                 id="btn-record"
-                aria-label="Record risk score on Creditcoin blockchain"
+                aria-label="Record risk score on the Creditcoin blockchain"
                 onClick={recordOnChain}
                 disabled={txStep > 0 && txStep < 3}
-                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
+                className={`flex-1 py-3 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-bold text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
               >
-                🔗 Record Score Proof On-Chain
+                🔗 Record Risk Score On-Chain
               </button>
               <button
                 id="btn-export"
                 aria-label="Export audit report as PDF"
                 onClick={() => window.print()}
-                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-sm rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
               >
                 📥 Export Audit Report
               </button>
@@ -643,7 +646,7 @@ export default function Home() {
             </p>
 
             {txStep > 0 && (
-              <div className={`mt-6 p-[2px] rounded-2xl ${txStep < 3 ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 animate-gradient-xy' : 'bg-slate-800 pulse-green'}`}>
+              <div className={`mt-6 p-[2px] rounded-2xl ${txStep < 3 ? 'bg-gradient-to-r from-cyan-500 to-blue-600 animate-gradient-xy' : 'bg-slate-800 pulse-green'}`}>
                 <div className="bg-slate-900 rounded-xl p-5 text-center space-y-4 h-full">
                   <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
                     <span>{txStep === 1 ? 'Submitting...' : txStep === 2 ? 'Confirming...' : 'Complete!'}</span>
@@ -651,8 +654,8 @@ export default function Home() {
                   </div>
                   
                   {/* Progress Bar */}
-                  <div className="w-full bg-slate-950 rounded-full h-2 mb-4">
-                    <div className="bg-cyan-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${txStep === 1 ? 33 : txStep === 2 ? 66 : 100}%` }}></div>
+                  <div className="w-full bg-slate-950 rounded-full h-2 mb-4 overflow-hidden">
+                    <div className="bg-cyan-500 h-full origin-left transition-transform duration-1000 ease-out" style={{ transform: `scaleX(${txStep === 1 ? 0.33 : txStep === 2 ? 0.66 : 1})` }}></div>
                   </div>
                   
                   <p className="text-sm font-mono text-emerald-400">
@@ -667,7 +670,7 @@ export default function Home() {
                         <button 
                           aria-label="Copy transaction hash"
                           onClick={() => copyToClipboard(txHash)}
-                          className="text-slate-400 hover:text-cyan-400 transition ml-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                          className="text-slate-400 hover:text-cyan-400 transition-all duration-200 ease-out active:scale-95 ml-2 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                           title="Copy to clipboard"
                         >
                           {isCopied ? "✓" : "📋"}
@@ -679,7 +682,7 @@ export default function Home() {
                         target="_blank"
                         rel="noreferrer"
                         aria-label="View transaction on Creditcoin block explorer"
-                        className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition border border-slate-700 shadow-sm w-fit focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                        className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 shadow-sm w-fit focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                       >
                         View on Explorer ↗
                       </a>
@@ -709,28 +712,28 @@ export default function Home() {
                   🔍
                 </div>
                 <h4 className="text-slate-200 font-semibold mb-2">1. Analyze</h4>
-                <p className="text-slate-500 text-xs">Fetches DeFiLlama TVL, liquidity, and on-chain security metrics.</p>
+                <p className="text-slate-500 text-xs">Gathers real-time TVL, liquidity data, and on-chain security metrics.</p>
               </div>
               <div className="flex flex-col items-center">
                 <div className="w-14 h-14 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-400 text-2xl mb-4 border border-purple-500/20">
                   🧮
                 </div>
                 <h4 className="text-slate-200 font-semibold mb-2">2. Score</h4>
-                <p className="text-slate-500 text-xs">AI agent processes vectors to output a 0-100 trust index.</p>
+                <p className="text-slate-500 text-xs">Our AI engine evaluates multiple risk factors to generate a 0-100 credit score.</p>
               </div>
               <div className="flex flex-col items-center">
                 <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 text-2xl mb-4 border border-emerald-500/20">
                   🔗
                 </div>
                 <h4 className="text-slate-200 font-semibold mb-2">3. Record</h4>
-                <p className="text-slate-500 text-xs">Saves an immutable proof of the audit to the Creditcoin network.</p>
+                <p className="text-slate-500 text-xs">Anchors an immutable proof of the risk assessment on-chain.</p>
               </div>
             </div>
             <div className="mt-10 pt-8 border-t border-slate-800/50">
-              <p className="text-sm text-slate-400 mb-4">Try it out with a preset protocol:</p>
+              <p className="text-sm text-slate-400 mb-4">Analyze a sample protocol:</p>
               <div className="flex flex-wrap justify-center gap-3">
                 {presets.map((preset, idx) => (
-                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition hover:scale-105 active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
+                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition-all duration-200 ease-out hover:scale-105 active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
                 ))}
               </div>
             </div>

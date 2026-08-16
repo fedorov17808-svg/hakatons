@@ -226,7 +226,7 @@ $$\text{Overall Score} = \mathrm{round}\left(\frac{S_{\text{liq}} + S_{\text{col
 │                   \/                            🤖 Autonomous Verdict:      │
 │                                                 LOW RISK — Institutional    │
 │                                                                             │
-│  [ 🔗 Record Score Proof On-Chain ]          [ 📥 Export Audit Report ]    │
+│  [ 🔗 Record Risk Score On-Chain ]           [ 📥 Export Audit Report ]    │
 │  Step 3/3: ✅ Confirmed in block #1049281 on Creditcoin Testnet!             │
 │  View Transaction on Block Explorer ↗                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -354,19 +354,24 @@ contract CreditPulseScore {
 ## 🚀 Quick Start
 
 ```bash
-# Clone & install
+# Clone the repository
 git clone https://github.com/fedorov17808-svg/hakatons.git
 cd hakatons
 
-# Backend
-cd backend && pip install -r requirements.txt
-cp ../.env.example .env  # Edit with your keys
+# Start the Backend
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env  # Remember to edit with your API keys
 uvicorn main:app --reload
 
-# Frontend (new terminal)
-cd frontend && npm install && npm run dev
+# Start the Frontend (in a new terminal)
+cd frontend
+npm install
+npm run dev
 
-# Open http://localhost:3000
+# Open your browser to http://localhost:3000
 ```
 
 ---

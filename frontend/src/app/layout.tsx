@@ -11,20 +11,21 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'CreditPulse AI',
-  description: 'Autonomous RWA Risk Assessment',
-  keywords: ['DeFi', 'RWA', 'Risk Assessment', 'Creditcoin', 'Blockchain', 'Credit Score', 'Smart Contract'],
+  title: 'CreditPulse AI — Autonomous RWA Risk Assessment',
+  description: 'Real-time DeFi credit risk scoring powered by AI agents, DeFiLlama oracles, and Creditcoin blockchain',
+  keywords: 'DeFi, risk assessment, RWA, Creditcoin, credit score, blockchain, AI',
   authors: [{ name: 'CreditPulse AI Team' }],
   openGraph: {
     title: 'CreditPulse AI — Autonomous RWA Risk Assessment',
-    description: 'AI-powered risk scoring for Real-World Assets on Creditcoin blockchain',
+    description: 'Real-time DeFi credit risk scoring powered by AI agents, DeFiLlama oracles, and Creditcoin blockchain',
     type: 'website',
     siteName: 'CreditPulse AI',
+    url: 'https://creditpulse.ai',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CreditPulse AI',
-    description: 'Autonomous RWA Risk Assessment on Creditcoin',
+    title: 'CreditPulse AI — Autonomous RWA Risk Assessment',
+    description: 'Real-time DeFi credit risk scoring powered by AI agents, DeFiLlama oracles, and Creditcoin blockchain',
   },
   robots: {
     index: true,

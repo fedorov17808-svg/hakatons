@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import re
+import threading
 import time
 import urllib.request
 import uuid
@@ -11,11 +12,13 @@ import uuid
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, validator
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from web3 import Web3
 
 load_dotenv()
@@ -39,7 +42,30 @@ app = FastAPI(
     redoc_url='/redoc'
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    retry_after = exc.headers.get("Retry-After", "60") if hasattr(exc, "headers") and exc.headers else "60"
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Rate limit exceeded: {exc.detail}", "error_code": "RATE_LIMIT_EXCEEDED"},
+        headers={"Retry-After": retry_after}
+    )
+
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request, exc):
+    error_code = "BAD_REQUEST"
+    if exc.status_code == 401: error_code = "UNAUTHORIZED"
+    elif exc.status_code == 403: error_code = "FORBIDDEN"
+    elif exc.status_code == 404: error_code = "NOT_FOUND"
+    elif exc.status_code == 429: error_code = "RATE_LIMIT_EXCEEDED"
+    elif exc.status_code >= 500: error_code = "INTERNAL_SERVER_ERROR"
+    return JSONResponse(status_code=exc.status_code, content={"detail": str(exc.detail), "error_code": error_code})
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(status_code=422, content={"detail": "Validation error", "error_code": "UNPROCESSABLE_ENTITY"})
 
 cors_origins = os.getenv("CORS_ORIGINS")
 allow_origins = cors_origins.split(",") if cors_origins else ["http://localhost:3000"]
@@ -58,15 +84,17 @@ async def limit_upload_size(request: Request, call_next):
     if request.method == "POST":
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 1024 * 1024:
-            return JSONResponse(status_code=413, content={"detail": "Payload too large"})
+            return JSONResponse(status_code=413, content={"detail": "Payload too large", "error_code": "PAYLOAD_TOO_LARGE"})
     return await call_next(request)
 
 @app.on_event("startup")
 def startup_event():
-    """Verify essential environment variables on startup."""
+    """Verify essential environment variables and warm cache on startup."""
     pk = os.getenv("PRIVATE_KEY")
     if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
         raise RuntimeError("Invalid or missing PRIVATE_KEY")
+    
+    threading.Thread(target=get_protocols_cached, daemon=True).start()
 
 async def verify_api_key(x_api_key: str = Header(default=None)):
     """Verify the provided API key against the environment variable."""
@@ -119,7 +147,7 @@ def fetch_defillama_data():
         return []
 
 _protocol_cache = {'data': None, 'timestamp': 0}
-CACHE_TTL = 300  # 5 minutes
+CACHE_TTL = 900  # 15 minutes
 
 def get_protocols_cached():
     """Retrieve DeFiLlama protocol data from cache or fetch if expired."""
@@ -185,12 +213,20 @@ def find_protocol(protocols, address):
 
 @app.get("/health", tags=['Health'])
 def health():
-    """Return the health status of the API."""
-    return {"status": "ok"}
+    """
+    Check the health of the API.
+    
+    Returns the status of the service, API version, and connected blockchain network.
+    """
+    return {"status": "ok", "version": "1.0.0", "chain": "creditcoin-testnet"}
 
 @app.get("/api/stats", tags=['Health'])
 def get_stats():
-    """Return API usage statistics and cache status."""
+    """
+    Retrieve system statistics.
+    
+    Provides insights into API usage, cache health, and system uptime. Useful for monitoring the performance of the oracle data layer.
+    """
     now = time.time()
     return {
         'total_analyses': STATS['total_analyses'],
@@ -203,7 +239,10 @@ def get_stats():
 @limiter.limit("5/minute")
 def api_analyze(request: Request, req: AnalyzeRequest):
     """
-    Analyze the credit risk of a DeFi protocol or RWA contract using live DeFiLlama data
+    Perform a real-time risk analysis on a smart contract.
+    
+    Evaluates liquidity, collateralization, security, volatility, governance, and audit track record 
+    to generate an institutional-grade risk score.
     """
     return process_analysis(req.address)
 
@@ -393,7 +432,9 @@ class RecordRequest(BaseModel):
 @limiter.limit("2/minute")
 def api_record(request: Request, req: RecordRequest, api_key: str = Depends(verify_api_key)):
     """
-    Record a risk score proof on-chain via the Creditcoin Testnet relayer
+    Record risk assessment data on-chain.
+    
+    Submits a transaction to the Creditcoin Testnet relayer to store an immutable proof of the risk score.
     """
     return process_record(req)
 
@@ -449,7 +490,9 @@ def process_record(req: RecordRequest):
 @app.get("/api/tx-status/{tx_hash}", tags=['Recording'])
 def get_tx_status(tx_hash: str):
     """
-    Poll the confirmation status of a previously submitted transaction.
+    Check the status of an on-chain recording transaction.
+    
+    Polls the blockchain to confirm whether the risk report has been successfully mined and included in a block.
     """
     if not re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
         raise HTTPException(status_code=400, detail="Invalid tx hash")

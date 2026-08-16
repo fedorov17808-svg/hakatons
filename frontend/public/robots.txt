@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap is not needed for SPA but can be added here if SSR/SSG is used later:
+# Sitemap: https://creditpulse.ai/sitemap.xml
