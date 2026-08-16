@@ -343,17 +343,13 @@ export default function Home() {
                 {result.protocol_name && result.protocol_name !== 'Unknown' && (
                   <p className='text-sm text-cyan-400 font-mono mt-1'>Protocol: {result.protocol_name}</p>
                 )}
-                {result.unverified && (
-                  <div className='mt-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg w-max'>
-                    <span className='text-xs text-amber-400 font-medium'>⚠️ Unverified Protocol — Limited Data Available</span>
-                  </div>
-                )}
+
               </div>
               <div className="text-right">
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
                 <p className="text-3xl font-black text-emerald-400 print:text-emerald-700">{result.score}/100</p>
                 {result.market_benchmark > 0 && (
-                  <p className="text-xs font-mono text-slate-400 mt-1">Market TVL: ${(result.market_benchmark > 1000000 ? result.market_benchmark / 1e9 : result.market_benchmark).toFixed(2)}B</p>
+                  <p className="text-xs font-mono text-slate-400 mt-1">Market TVL: ${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</p>
                 )}
               </div>
             </div>
@@ -446,8 +442,7 @@ export default function Home() {
             <div className="pt-4 border-t border-slate-800 flex flex-col md:flex-row gap-3 print:hidden">
               <button
                 onClick={recordOnChain}
-                disabled={!account}
-                title={!account ? "Connect wallet first" : undefined}
+                disabled={txStep > 0 && txStep < 3}
                 className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm rounded-xl transition shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 🔗 Record Score Proof On-Chain

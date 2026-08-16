@@ -68,16 +68,53 @@ def fetch_defillama_data():
         logger.error(f"Error fetching DeFiLlama data: {e}")
         return None
 
+
+# Known contract addresses → DeFiLlama slug mapping
+KNOWN_CONTRACTS = {
+    "0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2": "aave",
+    "0xc3d688b66703497daa19211eedff47f25384cdc3": "compound",
+    "0x9759a6ac90977b93b58547b4a71c78317f391a28": "maker",
+    "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9": "aave",
+    "0x3d9819210a31b4961b30ef54be2aed79b9c9cd3b": "compound",
+    "0x5a98fcbea516cf06857215779fd812ca3bef1b32": "lido",
+    "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": "uniswap",
+    "0xba100000625a3754423978a60c9317c58a424e3d": "balancer",
+    "0x6b175474e89094c44da98b954eedeac495271d0f": "maker",
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": "aave",
+}
+
 def find_protocol(protocols, address):
     if not protocols:
         return None
     addr_lower = address.lower()
+    
+    # 1. Check known contracts mapping first
+    slug_hint = KNOWN_CONTRACTS.get(addr_lower)
+    if slug_hint:
+        for p in protocols:
+            if slug_hint in p.get("slug", "").lower() or slug_hint in p.get("name", "").lower():
+                return p
+    
+    # 2. Search by address field in protocol data
     for p in protocols:
-        if addr_lower in p.get("slug", "").lower() or \
-           addr_lower in p.get("name", "").lower() or \
-           addr_lower == str(p.get("address", "")).lower():
+        p_addr = str(p.get("address", "")).lower()
+        if p_addr and addr_lower == p_addr:
             return p
+    
+    # 3. Search in all addresses
+    for p in protocols:
+        addrs = p.get("addresses", {})
+        if isinstance(addrs, dict):
+            for chain_addrs in addrs.values():
+                if isinstance(chain_addrs, str) and addr_lower == chain_addrs.lower():
+                    return p
+                elif isinstance(chain_addrs, list):
+                    for a in chain_addrs:
+                        if isinstance(a, str) and addr_lower == a.lower():
+                            return p
+    
     return None
+
 
 @app.get("/health")
 def health():
