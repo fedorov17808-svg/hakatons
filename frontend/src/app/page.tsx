@@ -57,6 +57,7 @@ export default function Home() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RiskResult | null>(null);
+  const [displayScore, setDisplayScore] = useState(0);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<string[]>([]);
   
@@ -67,6 +68,19 @@ export default function Home() {
   const [txBlockNumber, setTxBlockNumber] = useState<number | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking'|'online'|'offline'>('checking');
+
+  useEffect(() => {
+    if (!result) return;
+    let current = 0;
+    const target = result.score || 0;
+    const step = Math.ceil(target / 30) || 1;
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= target) { current = target; clearInterval(timer); }
+      setDisplayScore(current);
+    }, 30);
+    return () => clearInterval(timer);
+  }, [result]);
 
   useEffect(() => {
     fetch(`${API_URL}/health`)
@@ -314,8 +328,33 @@ export default function Home() {
         .animate-gradient-xy {
           animation: gradient-xy 3s ease infinite;
         }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-reveal { animation: fadeSlideUp 0.5s ease-out forwards; }
+        @keyframes fillBar {
+          from { width: 0%; }
+        }
+        @keyframes dots {
+          0%, 20% { content: '.'; }
+          40% { content: '..'; }
+          60%, 100% { content: '...'; }
+        }
+        .loading-dots::after {
+          content: '';
+          animation: dots 1.5s infinite;
+        }
+        @keyframes pulseGreen {
+          0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); }
+          100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+        }
+        .pulse-green {
+          animation: pulseGreen 1s ease-out;
+        }
         @media (prefers-reduced-motion: reduce) {
-          .animate-gradient-xy { animation: none !important; }
+          .animate-gradient-xy, .animate-reveal, .pulse-green, .loading-dots::after { animation: none !important; }
           * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
         }
       `}</style>
@@ -441,7 +480,7 @@ export default function Home() {
                   type="button"
                   aria-label={`Analyze ${preset.name}`}
                   onClick={() => handleAnalyze(undefined, preset.address)}
-                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition font-medium focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition hover:scale-105 active:scale-95 font-medium focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
                 >
                   {preset.name}
                 </button>
@@ -475,7 +514,7 @@ export default function Home() {
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-base font-medium text-cyan-400">Analyzing protocol with live DeFiLlama data...</p>
+              <p className="text-base font-medium text-cyan-400">Analyzing protocol with live DeFiLlama data<span className="loading-dots"></span></p>
               <p className="text-xs font-mono text-slate-500">Estimated time: ~3-5 seconds</p>
             </div>
           </div>
@@ -495,7 +534,7 @@ export default function Home() {
 
         {/* Results Dashboard */}
         {!loading && result && (
-          <section id="section-results" aria-labelledby="results-heading" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-in fade-in duration-300 print:text-black print:bg-white">
+          <section id="section-results" aria-labelledby="results-heading" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6 animate-reveal print:text-black print:bg-white">
             <h2 id="results-heading" className="sr-only">Analysis Results</h2>
             <div className="flex justify-between items-start border-b border-slate-800 pb-4">
               <div>
@@ -508,7 +547,7 @@ export default function Home() {
               </div>
               <div className="text-right">
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Overall Credit Score</span>
-                <p className={`text-3xl font-black ${getScoreColor(result.score || 0).text} print:text-emerald-700`}>{result.score}/100</p>
+                <p className={`text-3xl font-black ${getScoreColor(result.score || 0).text} print:text-emerald-700`}>{displayScore}/100</p>
                 <div className="mt-1">
                   <span className={`text-xs px-2 py-0.5 rounded-md border border-current ${getScoreColor(result.score || 0).text}`}>
                     {getScoreText(result.score || 0)}
@@ -534,65 +573,24 @@ export default function Home() {
 
               <div id="section-breakdown" className="space-y-3">
                 <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 print:text-gray-600">Detailed Breakdown</h3>
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Liquidity Depth</span>
-                    <span className={`${getScoreColor(result.liquidity || 0).text} font-mono print:text-black`}>{result.liquidity}%</span>
+                {[
+                  { label: "Liquidity Depth", value: result.liquidity || 0 },
+                  { label: "Collateral Ratio", value: result.collateral || 0 },
+                  { label: "Smart Contract Security", value: result.security || 0 },
+                  { label: "Audit Verification", value: result.audit || 0 },
+                  { label: "Volatility Index", value: result.volatility_score || 0 },
+                  { label: "Governance Score", value: result.governance || 0 },
+                ].map((item, index) => (
+                  <div key={item.label}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-400 print:text-gray-700">{item.label}</span>
+                      <span className={`${getScoreColor(item.value).text} font-mono print:text-black`}>{item.value}%</span>
+                    </div>
+                    <div className="w-full bg-slate-950 rounded-full h-2">
+                      <div className={`${getScoreColor(item.value).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${item.value}%`, animation: `fillBar 0.8s ease-out forwards`, animationDelay: `${index * 0.1}s` }}></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.liquidity || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.liquidity}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Collateral Ratio</span>
-                    <span className={`${getScoreColor(result.collateral || 0).text} font-mono print:text-black`}>{result.collateral}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.collateral || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.collateral}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Smart Contract Security</span>
-                    <span className={`${getScoreColor(result.security || 0).text} font-mono print:text-black`}>{result.security}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.security || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.security}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Audit Verification</span>
-                    <span className={`${getScoreColor(result.audit || 0).text} font-mono print:text-black`}>{result.audit}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.audit || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.audit}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Volatility Index</span>
-                    <span className={`${getScoreColor(result.volatility_score || 0).text} font-mono print:text-black`}>{result.volatility_score || 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.volatility_score || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.volatility_score || 0}%` }}></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-400 print:text-gray-700">Governance Score</span>
-                    <span className={`${getScoreColor(result.governance || 0).text} font-mono print:text-black`}>{result.governance || 0}%</span>
-                  </div>
-                  <div className="w-full bg-slate-950 rounded-full h-2">
-                    <div className={`${getScoreColor(result.governance || 0).bar} h-2 rounded-full transition-all duration-500`} style={{ width: `${result.governance || 0}%` }}></div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -626,7 +624,7 @@ export default function Home() {
             </div>
 
             {txStep > 0 && (
-              <div className={`mt-6 p-[2px] rounded-2xl ${txStep < 3 ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 animate-gradient-xy' : 'bg-slate-800'}`}>
+              <div className={`mt-6 p-[2px] rounded-2xl ${txStep < 3 ? 'bg-gradient-to-r from-cyan-500 via-purple-500 to-emerald-500 animate-gradient-xy' : 'bg-slate-800 pulse-green'}`}>
                 <div className="bg-slate-900 rounded-xl p-5 text-center space-y-4 h-full">
                   <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
                     <span>{txStep === 1 ? 'Submitting...' : txStep === 2 ? 'Confirming...' : 'Complete!'}</span>
@@ -717,7 +715,7 @@ export default function Home() {
               <p className="text-sm text-slate-400 mb-4">Try it out with a preset protocol:</p>
               <div className="flex flex-wrap justify-center gap-3">
                 {presets.map((preset, idx) => (
-                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
+                  <button key={idx} aria-label={`Analyze ${preset.name}`} onClick={() => handleAnalyze(undefined, preset.address)} className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm rounded-xl transition hover:scale-105 active:scale-95 border border-slate-700 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none">{preset.name}</button>
                 ))}
               </div>
             </div>
