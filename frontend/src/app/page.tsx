@@ -271,7 +271,7 @@ export default function Home() {
     setTxBlockNumber(null);
     
     try {
-      const response = await fetch(`${API_URL}/api/record`, {
+      const response = await fetch(`/api/record`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
