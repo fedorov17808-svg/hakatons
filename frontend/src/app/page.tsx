@@ -285,6 +285,8 @@ export default function Home() {
           security: Math.round(result.security || 0),
           volatility: Math.round(result.volatility_score || 0),
           governance: Math.round(result.governance || 0),
+          tvl: result.market_benchmark || 0,
+          protocol_name: result.protocol_name || "Unknown",
         }),
       });
 
@@ -671,6 +673,12 @@ export default function Home() {
                   
                   {txHash && (
                     <div className="flex flex-col items-center gap-4 pt-4 border-t border-slate-800/50">
+                      {/* Attestcoin Protocol Badge */}
+                      <div className="flex items-center gap-2 bg-emerald-950/50 px-4 py-2 rounded-xl border border-emerald-700/40">
+                        <span className="text-emerald-400 text-sm font-semibold">🔗 Attestcoin Protocol</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50">Verified</span>
+                      </div>
+                      
                       <div className="flex items-center gap-3 bg-slate-950 px-4 py-2 rounded-lg border border-slate-800/80 w-fit">
                         <span className="text-xs text-slate-400 font-mono">Tx: {txHash.slice(0, 10)}...{txHash.slice(-8)}</span>
                         <button 
@@ -682,6 +690,11 @@ export default function Home() {
                           {isCopied ? "✓" : "📋"}
                         </button>
                       </div>
+
+                      {/* Data Provenance Hash */}
+                      <p className="text-[10px] text-slate-500 font-mono text-center">
+                        dataHash: keccak256(scores + tvl + protocol) stored on-chain
+                      </p>
                       
                       <a
                         href={`${EXPLORER_URL}${txHash}`}

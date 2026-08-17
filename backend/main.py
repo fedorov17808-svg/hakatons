@@ -404,8 +404,8 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 _recent_records = {}
 RECORD_COOLDOWN = 30
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xcdfEe044bbA3defc624715f4F5695E0b3910998E")
-CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5C06f67a91B772f15909aFE88Cd63e603379C1f7")
+CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
 
 class RecordRequest(BaseModel):
     address: str
@@ -416,6 +416,8 @@ class RecordRequest(BaseModel):
     security: int = 0
     volatility: int = 0
     governance: int = 0
+    tvl: float = 0.0
+    protocol_name: str = "Unknown"
 
     @validator('address')
     def validate_address(cls, v):
@@ -460,10 +462,15 @@ def process_record(req: RecordRequest):
         # Convert address string to checksum address for the contract call
         asset_address = Web3.to_checksum_address(req.address)
         
+        # Compute dataHash: keccak256 of source data for verifiable provenance
+        import hashlib
+        data_string = f"{req.address}:{req.score}:{req.liquidity}:{req.collateral}:{req.audit}:{req.security}:{req.volatility}:{req.governance}:{req.tvl}:{req.protocol_name}"
+        data_hash = Web3.keccak(text=data_string)
+        
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
         tx = contract.functions.saveRiskReport(
             asset_address, req.score, req.liquidity, req.collateral, req.audit,
-            req.security, req.volatility, req.governance
+            req.security, req.volatility, req.governance, data_hash
         ).build_transaction({
             'from': account.address,
             'nonce': nonce,

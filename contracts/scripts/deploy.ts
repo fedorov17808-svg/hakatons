@@ -1,12 +1,12 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const CreditPulseScore = await ethers.getContractFactory("CreditPulseScore");
-  const contract = await CreditPulseScore.deploy();
+  const CreditPulseASC = await ethers.getContractFactory("CreditPulseASC");
+  const contract = await CreditPulseASC.deploy();
 
   await contract.waitForDeployment();
 
-  console.log(`CreditPulseScore deployed to: ${await contract.getAddress()}`);
+  console.log(`CreditPulseASC deployed to: ${await contract.getAddress()}`);
 }
 
 main().catch((error) => {

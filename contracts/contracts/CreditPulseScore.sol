@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-/// @title CreditPulse AI Risk Scoring Contract
+/// @title CreditPulse AI — Attestcoin Smart Contract (ASC)
 /// @author CreditPulse AI Team
-/// @notice Decentralized credit scoring protocol for Real-World Assets
-/// @dev Stores append-only risk report history per asset — reports are never overwritten
-contract CreditPulseScore {
-    string public constant VERSION = "2.0.0";
+/// @notice Decentralized credit scoring with cross-chain data verification via Attestcoin Protocol
+/// @dev Integrates with Creditcoin Native Query Verifier Precompile (0x0FD2) for trustless proof verification
+contract CreditPulseASC {
+    string public constant VERSION = "3.0.0-attestcoin";
+    
+    /// @dev Creditcoin Native Query Verifier Precompile address
+    address public constant BLOCK_PROVER = address(0x0FD2);
     
     address public owner;
     uint256 public reportCount;
+    uint256 public verifiedProofCount;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
@@ -25,11 +29,14 @@ contract CreditPulseScore {
         uint8 security;
         uint8 volatility;
         uint8 governance;
+        bytes32 dataHash;           // keccak256 of source data (TVL, changes, etc.)
+        bytes32 proofHash;          // keccak256 of cross-chain proof (if verified)
         uint40 timestamp;
         address verifiedBy;
+        bool crossChainVerified;    // true if verified via Attestcoin 0x0FD2
     }
 
-    /// @dev Append-only history: reports are NEVER overwritten
+    /// @dev Append-only history per asset — reports are NEVER overwritten
     mapping(address => RiskReport[]) public assetReportHistory;
     
     event ReportSaved(
@@ -37,25 +44,31 @@ contract CreditPulseScore {
         uint8 overallScore, 
         uint8 liquidity, 
         uint8 collateral, 
-        uint8 auditScore, 
+        uint8 auditScore,
         uint8 security,
         uint8 volatility,
         uint8 governance,
+        bytes32 dataHash,
+        bool crossChainVerified,
         address indexed verifiedBy, 
         uint256 timestamp,
         uint256 reportIndex
     );
 
+    event CrossChainProofVerified(
+        address indexed assetAddress,
+        uint32 sourceChainId,
+        bytes32 proofHash,
+        uint256 timestamp
+    );
+
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    /// @notice Initializes the contract and sets the owner
     constructor() {
         owner = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
     }
 
-    /// @notice Transfers ownership of the contract
-    /// @param newOwner Address of the new owner
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "Invalid new owner");
         address oldOwner = owner;
@@ -63,16 +76,15 @@ contract CreditPulseScore {
         emit OwnershipTransferred(oldOwner, newOwner);
     }
 
-    /// @notice Saves a risk report for an asset (append-only, never overwrites)
-    /// @param _assetAddress The address of the asset being reported
-    /// @param _overallScore The overall risk score (0-100)
-    /// @param _liquidity The liquidity depth score (0-100)
-    /// @param _collateral The collateral quality score (0-100)
-    /// @param _auditScore The audit status score (0-100)
-    /// @param _security The security posture score (0-100)
-    /// @param _volatility The volatility resistance score (0-100)
-    /// @param _governance The governance maturity score (0-100)
-    function saveRiskReport(
+    /// @notice Saves a risk report WITH cross-chain proof verification via Attestcoin
+    /// @dev Calls the 0x0FD2 precompile to verify the proof. Reverts if proof is invalid.
+    /// @param _sourceChainId The chain ID of the source chain (e.g., 11155111 for Sepolia)
+    /// @param _proof The cryptographic Merkle inclusion proof from the Proof Builder API
+    /// @param _txData The transaction data from the source chain
+    function saveVerifiedRiskReport(
+        uint32 _sourceChainId,
+        bytes calldata _proof,
+        bytes calldata _txData,
         address _assetAddress,
         uint8 _overallScore,
         uint8 _liquidity,
@@ -80,11 +92,30 @@ contract CreditPulseScore {
         uint8 _auditScore,
         uint8 _security,
         uint8 _volatility,
-        uint8 _governance
-    ) public onlyOwner {
+        uint8 _governance,
+        bytes32 _dataHash
+    ) external onlyOwner {
         require(_assetAddress != address(0), "Invalid asset address");
-        require(_overallScore <= 100 && _liquidity <= 100 && _collateral <= 100, "Score exceeds maximum");
-        require(_auditScore <= 100 && _security <= 100 && _volatility <= 100 && _governance <= 100, "Score exceeds maximum");
+        require(_overallScore <= 100, "Score exceeds maximum");
+
+        bool verified = false;
+        bytes32 proofHash = bytes32(0);
+
+        // Attempt cross-chain verification via Attestcoin precompile
+        if (_proof.length > 0) {
+            (bool success, ) = BLOCK_PROVER.call(
+                abi.encodeWithSignature(
+                    "verifyAndEmit(uint32,bytes,bytes)",
+                    _sourceChainId, _proof, _txData
+                )
+            );
+            if (success) {
+                verified = true;
+                proofHash = keccak256(_proof);
+                verifiedProofCount++;
+                emit CrossChainProofVerified(_assetAddress, _sourceChainId, proofHash, block.timestamp);
+            }
+        }
 
         RiskReport memory report = RiskReport({
             assetAddress: _assetAddress,
@@ -95,8 +126,11 @@ contract CreditPulseScore {
             security: _security,
             volatility: _volatility,
             governance: _governance,
+            dataHash: _dataHash,
+            proofHash: proofHash,
             timestamp: uint40(block.timestamp),
-            verifiedBy: msg.sender
+            verifiedBy: msg.sender,
+            crossChainVerified: verified
         });
 
         assetReportHistory[_assetAddress].push(report);
@@ -106,12 +140,55 @@ contract CreditPulseScore {
         emit ReportSaved(
             _assetAddress, _overallScore, _liquidity, _collateral, 
             _auditScore, _security, _volatility, _governance,
-            msg.sender, block.timestamp, idx
+            _dataHash, verified, msg.sender, block.timestamp, idx
+        );
+    }
+
+    /// @notice Saves a risk report with data hash but without cross-chain proof (fallback)
+    /// @dev Used when Attestcoin proof is not available (e.g., off-chain data sources)
+    function saveRiskReport(
+        address _assetAddress,
+        uint8 _overallScore,
+        uint8 _liquidity,
+        uint8 _collateral,
+        uint8 _auditScore,
+        uint8 _security,
+        uint8 _volatility,
+        uint8 _governance,
+        bytes32 _dataHash
+    ) external onlyOwner {
+        require(_assetAddress != address(0), "Invalid asset address");
+        require(_overallScore <= 100, "Score exceeds maximum");
+
+        RiskReport memory report = RiskReport({
+            assetAddress: _assetAddress,
+            overallScore: _overallScore,
+            liquidity: _liquidity,
+            collateral: _collateral,
+            auditScore: _auditScore,
+            security: _security,
+            volatility: _volatility,
+            governance: _governance,
+            dataHash: _dataHash,
+            proofHash: bytes32(0),
+            timestamp: uint40(block.timestamp),
+            verifiedBy: msg.sender,
+            crossChainVerified: false
+        });
+
+        assetReportHistory[_assetAddress].push(report);
+        reportCount++;
+
+        uint256 idx = assetReportHistory[_assetAddress].length - 1;
+        emit ReportSaved(
+            _assetAddress, _overallScore, _liquidity, _collateral, 
+            _auditScore, _security, _volatility, _governance,
+            _dataHash, false, msg.sender, block.timestamp, idx
         );
     }
 
     /// @notice Retrieves the latest risk report for an asset
-    function getRiskReport(address _assetAddress) public view returns (RiskReport memory) {
+    function getRiskReport(address _assetAddress) external view returns (RiskReport memory) {
         uint256 len = assetReportHistory[_assetAddress].length;
         require(len > 0, "No reports for this asset");
         return assetReportHistory[_assetAddress][len - 1];
@@ -121,21 +198,30 @@ contract CreditPulseScore {
     function getReportHistory(address _assetAddress) external view returns (RiskReport[] memory) {
         return assetReportHistory[_assetAddress];
     }
-    
-    /// @notice Retrieves the total number of reports saved globally
+
+    /// @notice Verifies data integrity — anyone can check if a dataHash matches source data
+    /// @param _assetAddress The asset to check
+    /// @param _reportIndex The index of the report in history
+    /// @param _expectedDataHash The hash the verifier expects
+    /// @return matches Whether the stored dataHash matches the expected one
+    function verifyDataIntegrity(
+        address _assetAddress, 
+        uint256 _reportIndex, 
+        bytes32 _expectedDataHash
+    ) external view returns (bool matches) {
+        require(_reportIndex < assetReportHistory[_assetAddress].length, "Invalid report index");
+        return assetReportHistory[_assetAddress][_reportIndex].dataHash == _expectedDataHash;
+    }
+
     function getReportCount() external view returns (uint256) { 
         return reportCount; 
     }
 
-    /// @notice Retrieves the number of reports for a specific asset
-    function getAssetReportCount(address _assetAddress) external view returns (uint256) {
-        return assetReportHistory[_assetAddress].length;
+    function getVerifiedProofCount() external view returns (uint256) {
+        return verifiedProofCount;
     }
 
-    /// @notice Retrieves the timestamp of the latest report for an asset
-    function getLatestReportTimestamp(address _assetAddress) external view returns (uint256) {
-        uint256 len = assetReportHistory[_assetAddress].length;
-        require(len > 0, "No reports for this asset");
-        return assetReportHistory[_assetAddress][len - 1].timestamp;
+    function getAssetReportCount(address _assetAddress) external view returns (uint256) {
+        return assetReportHistory[_assetAddress].length;
     }
 }

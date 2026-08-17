@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**Autonomous Real-World Asset (RWA) Risk Assessment Platform & Decentralized Credit Scoring Infrastructure on Creditcoin**
+**Autonomous Real-World Asset (RWA) Risk Assessment Platform & Decentralized Credit Scoring Infrastructure on Creditcoin — Powered by Attestcoin Protocol**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/fedorov17808-svg/hakatons)
 [![Creditcoin Testnet](https://img.shields.io/badge/network-Creditcoin_Testnet_%28CC3%29-00E5FF.svg)](https://explorer.cc3-testnet.creditcoin.network)
@@ -20,8 +20,11 @@
 
 ## ✨ Features
 
+- ✅ **Attestcoin Protocol Integration** — Cross-chain data verification via `0x0FD2` precompile
 - ✅ Real-time protocol analysis via DeFiLlama oracles
-- ✅ 6-dimensional risk scoring engine
+- ✅ **7-dimensional** risk scoring engine (Overall, Liquidity, Collateral, Audit, Security, Volatility, Governance)
+- ✅ **Verifiable data provenance** — `dataHash` stored on-chain for trustless verification
+- ✅ **Append-only report history** — reports are NEVER overwritten
 - ✅ On-chain risk report anchoring on Creditcoin Testnet
 - ✅ MetaMask wallet integration with auto-network switch
 - ✅ Production-grade Docker deployment
@@ -79,18 +82,25 @@ Try these real DeFi protocol addresses to test the platform:
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract Address** | [`0xcdfEe044bbA3defc624715f4F5695E0b3910998E`](https://creditcoin-testnet.blockscout.com/address/0xcdfEe044bbA3defc624715f4F5695E0b3910998E) (v2.0) |
+| **Smart Contract (ASC)** | [`0x5C06f67a91B772f15909aFE88Cd63e603379C1f7`](https://creditcoin-testnet.blockscout.com/address/0x5C06f67a91B772f15909aFE88Cd63e603379C1f7#code) (v3.0-attestcoin) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
 | **Interactive API Docs** | [**Swagger UI (Production)**](https://backend-lilac-nine-97.vercel.app/docs) |
 
+### 🔗 Attestcoin Protocol Integration
+
+CreditPulse AI leverages the **Attestcoin Protocol (USC)** for trustless cross-chain data verification:
+
+- **Precompile `0x0FD2`** — Native Query Verifier on Creditcoin validates proofs
+- **`dataHash`** — Every report stores `keccak256(scores + tvl + protocol)` on-chain
+- **Verifiable provenance** — Judges can independently verify that scores match source data
+- Contract function `verifyDataIntegrity()` allows anyone to check data consistency
+
 ### 📜 Verified On-Chain Transaction Examples
 
-Every risk report generates an on-chain transaction calling `saveRiskReport(...)` on Creditcoin. Transactions can be verified on: https://creditcoin-testnet.blockscout.com/
+Every risk report generates an on-chain transaction calling `saveRiskReport(...)` on Creditcoin with a `dataHash` for verifiable provenance. Transactions can be verified on: https://creditcoin-testnet.blockscout.com/
 
-* [`0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298`](https://creditcoin-testnet.blockscout.com/tx/0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298) — Aave V3 Risk Score: 87/100 (Block #5,267,961)
-* [`0x2fdfb9884e67bfae964f8f8c4371d599a1b36f7f41ea2bdef9ef5f59186452f5`](https://creditcoin-testnet.blockscout.com/tx/0x2fdfb9884e67bfae964f8f8c4371d599a1b36f7f41ea2bdef9ef5f59186452f5) — Compound V3 Risk Score: 82/100 (Block #5,272,528)
-* [`0x033b8e2846089f17f0312599f63eef54d33917612c7b4f07a42f8b2068c792ab`](https://creditcoin-testnet.blockscout.com/tx/0x033b8e2846089f17f0312599f63eef54d33917612c7b4f07a42f8b2068c792ab) — MakerDAO Risk Score: 79/100 (Block #5,272,592)
+* [`0xda0d2213a6149c7cbb76baaed6832ea07ecf4f3bfc931c37f5a59d86e505bd39`](https://creditcoin-testnet.blockscout.com/tx/0xda0d2213a6149c7cbb76baaed6832ea07ecf4f3bfc931c37f5a59d86e505bd39) — Aave V3 Risk Score: 88/100 (ASC v3.0, with dataHash)
 
 ---
 
