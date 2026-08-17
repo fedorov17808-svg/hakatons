@@ -21,6 +21,13 @@ from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from web3 import Web3
 
+try:
+    import google.generativeai as genai
+    _GEMINI_AVAILABLE = True
+except ImportError:
+    _GEMINI_AVAILABLE = False
+    genai = None
+
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +41,56 @@ STATS = {
     'total_analyses': 0,
     'total_records': 0
 }
+
+# --- Gemini AI client setup ---
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+_gemini_model = None
+if _GEMINI_AVAILABLE and GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+        logger.info("Gemini AI model initialized successfully")
+    except Exception as e:
+        logger.warning(f"Gemini AI init failed: {e}")
+        _gemini_model = None
+
+def generate_risk_narrative(
+    protocol_name: str,
+    overall: int,
+    tvl: float,
+    category: str,
+    change_1d: float,
+    change_7d: float,
+    chains_count: int,
+    audits: str,
+    verdict: str,
+) -> str | None:
+    """Generate an AI-powered risk narrative using Gemini. Returns None if unavailable."""
+    if not _gemini_model:
+        return None
+    try:
+        tvl_b = tvl / 1e9 if tvl > 1e9 else tvl / 1e6
+        tvl_unit = "B" if tvl > 1e9 else "M"
+        prompt = (
+            f"You are a DeFi risk analyst. Analyze this protocol in exactly 2 concise sentences (max 60 words total):\n"
+            f"Protocol: {protocol_name}\n"
+            f"Category: {category}\n"
+            f"TVL: ${tvl_b:.1f}{tvl_unit}\n"
+            f"24h change: {change_1d:+.2f}%\n"
+            f"7d change: {change_7d:+.2f}%\n"
+            f"Chains: {chains_count}\n"
+            f"Audited: {'Yes' if audits not in ['0', '2', '', None] else 'No'}\n"
+            f"Overall risk score: {overall}/100 ({verdict})\n"
+            f"Write a factual, data-driven assessment. No fluff. Start with the protocol name."
+        )
+        response = _gemini_model.generate_content(
+            prompt,
+            generation_config={"max_output_tokens": 120, "temperature": 0.3}
+        )
+        return response.text.strip()
+    except Exception as e:
+        logger.warning(f"Gemini narrative generation failed: {e}")
+        return None
 
 app = FastAPI(
     title='CreditPulse AI Engine',
@@ -442,8 +499,21 @@ def process_analysis(address: str):
     response_time_ms = int((time.time() - start_time) * 1000)
     req_id = str(uuid.uuid4())[:8]
     logger.info(f"Analyze request for {address} processed in {response_time_ms}ms (ID: {req_id})")
-    
-    return {
+
+    # --- Gemini AI narrative (non-blocking: failure = None) ---
+    ai_narrative = generate_risk_narrative(
+        protocol_name=protocol_name,
+        overall=overall,
+        tvl=market_benchmark,
+        category=raw_inputs.get("category", ""),
+        change_1d=raw_inputs.get("change_1d") or 0.0,
+        change_7d=raw_inputs.get("change_7d") or 0.0,
+        chains_count=raw_inputs.get("chains_count") or 0,
+        audits=str(raw_inputs.get("audits", "0")),
+        verdict=verdict,
+    )
+
+    response = {
         "score": overall,
         "liquidity": liquidity,
         "collateral": collateral,
@@ -461,7 +531,11 @@ def process_analysis(address: str):
         "formula_version": "1.0",
         "raw_inputs": raw_inputs,
         "data_hash": data_hash,
+        "ai_powered": _gemini_model is not None,
     }
+    if ai_narrative:
+        response["ai_narrative"] = ai_narrative
+    return response
 
 # --- Blockchain recording ---
 RPC_URL = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
@@ -471,7 +545,7 @@ _recent_records = {}
 RECORD_COOLDOWN = 30
 
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x7eda50D76067D0e9E78822D5581AA31D084c5C2f")
-CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
+CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint32","name":"_sourceChainId","type":"uint32"},{"internalType":"bytes","name":"_proof","type":"bytes"},{"internalType":"bytes","name":"_txData","type":"bytes"},{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveVerifiedRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"}],"name":"getAssetReportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"reportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"verifiedProofCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]')
 
 class RecordRequest(BaseModel):
     address: str
@@ -710,3 +784,38 @@ def api_methodology():
         "data_source": "DeFiLlama API (https://api.llama.fi/protocols)",
         "contract": CONTRACT_ADDRESS,
     }
+
+@app.get("/api/stats/onchain", tags=['Verification'])
+def api_stats_onchain():
+    """
+    Reads live statistics directly from the smart contract on Creditcoin Testnet.
+    
+    Returns the total number of risk reports and cross-chain verified proofs
+    stored on-chain. This data is read directly from blockchain state — not 
+    from our database — proving real on-chain activity.
+    """
+    try:
+        w3 = Web3(Web3.HTTPProvider(RPC_URL))
+        if not w3.is_connected():
+            raise HTTPException(status_code=503, detail="Cannot connect to Creditcoin RPC")
+        
+        contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+        
+        total_reports = contract.functions.reportCount().call()
+        verified_proofs = contract.functions.verifiedProofCount().call()
+        block_number = w3.eth.block_number
+        
+        return {
+            "total_reports_onchain": total_reports,
+            "verified_cross_chain_proofs": verified_proofs,
+            "contract_address": CONTRACT_ADDRESS,
+            "network": "Creditcoin Testnet (chainId 102031)",
+            "block_number": block_number,
+            "explorer": f"https://creditcoin-testnet.blockscout.com/address/{CONTRACT_ADDRESS}",
+            "data_source": "Direct blockchain read via eth_call — not from our database",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"On-chain stats failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to read on-chain stats: {str(e)}")

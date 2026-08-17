@@ -36,6 +36,8 @@ interface RiskResult {
     match?: string;
   };
   data_hash?: string;
+  ai_narrative?: string;
+  ai_powered?: boolean;
 }
 
 const getScoreColor = (score: number) => {
@@ -82,6 +84,7 @@ export default function Home() {
   const [txBlockNumber, setTxBlockNumber] = useState<number | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking'|'online'|'offline'>('checking');
+  const [onchainStats, setOnchainStats] = useState<{total_reports_onchain: number; verified_cross_chain_proofs: number; block_number: number} | null>(null);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -116,8 +119,14 @@ export default function Home() {
 
   useEffect(() => {
     fetch(`${API_URL}/health`)
-      .then(r => r.ok ? setBackendStatus('online') : setBackendStatus('offline'))
+      .then(r => r.json())
+      .then(() => setBackendStatus('online'))
       .catch(() => setBackendStatus('offline'));
+    // Live on-chain stats
+    fetch(`${API_URL}/api/stats/onchain`)
+      .then(r => r.json())
+      .then(d => { if (d.total_reports_onchain !== undefined) setOnchainStats(d); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -437,6 +446,12 @@ export default function Home() {
               </>
             )}
           </div>
+          {onchainStats && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-950/40 rounded-xl border border-violet-700/40 backdrop-blur-sm text-xs font-mono font-medium hidden sm:flex" title="Live data read from Creditcoin smart contract">
+              <span className="text-violet-400">⛓</span>
+              <span className="text-violet-300">{onchainStats.total_reports_onchain} on-chain proofs</span>
+            </div>
+          )}
           <a
             href={`${API_URL}/docs`}
             target="_blank"
@@ -644,6 +659,17 @@ export default function Home() {
               </span>
               <p className="text-sm text-slate-300 leading-relaxed print:text-black">{result.verdict}</p>
             </div>
+
+            {/* Gemini AI Narrative */}
+            {result.ai_narrative && (
+              <div className="bg-gradient-to-br from-violet-950/40 to-indigo-950/40 border border-violet-700/40 rounded-xl p-4 print:bg-gray-50 print:border-gray-300">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">✨ AI Risk Analysis</span>
+                  <span className="text-xs px-2 py-0.5 bg-violet-900/50 text-violet-300 rounded-full border border-violet-700/40 font-mono">Powered by Gemini</span>
+                </div>
+                <p className="text-sm text-slate-200 leading-relaxed italic print:text-black">&ldquo;{result.ai_narrative}&rdquo;</p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row gap-4 print:hidden">
