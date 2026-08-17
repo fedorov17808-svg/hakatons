@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: creditpulse-api
+    runtime: python
+    region: frankfurt
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PRIVATE_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CONTRACT_ADDRESS
+        value: "0xa643984b1e111B41644671E74dc1A2B93E6F2ff1"
+      - key: RPC_URL
+        value: "https://rpc.cc3-testnet.creditcoin.network"
+      - key: PYTHON_VERSION
+        value: "3.11.0"

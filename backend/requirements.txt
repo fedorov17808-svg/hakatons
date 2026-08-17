@@ -4,3 +4,4 @@ pydantic>=2.0
 python-dotenv>=1.0.0
 web3
 slowapi
+requests>=2.28.0
