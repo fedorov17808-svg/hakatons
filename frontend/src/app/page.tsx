@@ -109,9 +109,9 @@ export default function Home() {
     try {
       const saved = localStorage.getItem("cp_history");
       if (saved) {
-        try { setHistory(JSON.parse(saved)); } catch (e) {}
+        try { setHistory(JSON.parse(saved)); } catch (e) { console.warn('Failed to parse history:', e); }
       }
-    } catch (err) {}
+    } catch (err) { console.warn('localStorage unavailable:', err); }
   }, []);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function Home() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {}
+    } catch (e) { console.warn('Audio context error:', e); }
   };
 
   const switchToCreditcoin = async () => {
@@ -244,7 +244,7 @@ export default function Home() {
         setHistory(updated);
         try {
           localStorage.setItem("cp_history", JSON.stringify(updated));
-        } catch(e) {}
+        } catch(e) { console.warn('localStorage write error:', e); }
         
         setLoading(false);
         return;
@@ -271,7 +271,7 @@ export default function Home() {
     setTxBlockNumber(null);
     
     try {
-      const response = await fetch(`/api/record`, {
+      const response = await fetch(`${API_URL}/api/record`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json"
@@ -282,6 +282,9 @@ export default function Home() {
           liquidity: Math.round(result.liquidity || 0),
           collateral: Math.round(result.collateral || 0),
           audit: Math.round(result.audit || 0),
+          security: Math.round(result.security || 0),
+          volatility: Math.round(result.volatility_score || 0),
+          governance: Math.round(result.governance || 0),
         }),
       });
 
@@ -574,7 +577,7 @@ export default function Home() {
                   </span>
                 </div>
                 {typeof result.market_benchmark === 'number' && result.market_benchmark > 0 && (
-                  <p className="text-sm font-mono text-slate-300 mt-4">Market TVL: <span className="text-white font-bold">${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</span></p>
+                  <p className="text-sm font-mono text-slate-300 mt-4">Protocol TVL: <span className="text-white font-bold">${result.market_benchmark >= 1e9 ? (result.market_benchmark / 1e9).toFixed(2) + 'B' : result.market_benchmark >= 1e6 ? (result.market_benchmark / 1e6).toFixed(1) + 'M' : result.market_benchmark.toLocaleString()}</span></p>
                 )}
               </div>
             </div>

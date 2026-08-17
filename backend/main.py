@@ -404,8 +404,8 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 _recent_records = {}
 RECORD_COOLDOWN = 30
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xa643984b1e111B41644671E74dc1A2B93E6F2ff1")
-CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xcdfEe044bbA3defc624715f4F5695E0b3910998E")
+CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
 
 class RecordRequest(BaseModel):
     address: str
@@ -413,6 +413,9 @@ class RecordRequest(BaseModel):
     liquidity: int
     collateral: int
     audit: int
+    security: int = 0
+    volatility: int = 0
+    governance: int = 0
 
     @validator('address')
     def validate_address(cls, v):
@@ -459,7 +462,8 @@ def process_record(req: RecordRequest):
         
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
         tx = contract.functions.saveRiskReport(
-            asset_address, req.score, req.liquidity, req.collateral, req.audit
+            asset_address, req.score, req.liquidity, req.collateral, req.audit,
+            req.security, req.volatility, req.governance
         ).build_transaction({
             'from': account.address,
             'nonce': nonce,
