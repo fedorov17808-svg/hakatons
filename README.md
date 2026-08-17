@@ -80,7 +80,9 @@ Try these real DeFi protocol addresses to test the platform:
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
 | **Smart Contract Address** | [`0xa643984b1e111B41644671E74dc1A2B93E6F2ff1`](https://creditcoin-testnet.blockscout.com/address/0xa643984b1e111B41644671E74dc1A2B93E6F2ff1) |
-| **Interactive API Docs** | `http://localhost:8000/docs` (Swagger UI / OpenAPI) |
+| **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
+| **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
+| **Interactive API Docs** | [**Swagger UI (Production)**](https://backend-lilac-nine-97.vercel.app/docs) |
 
 ### 📜 Verified On-Chain Transaction Examples
 
@@ -94,10 +96,11 @@ Every risk report generates an on-chain transaction calling `saveRiskReport(...)
 
 ## 💻 Tech Stack
 
-- **Frontend:** Next.js 15 + React 19 + Recharts
+- **Frontend:** Next.js 16 + React 19 + Recharts
 - **Backend:** FastAPI + DeFiLlama Oracle
-- **Blockchain:** Creditcoin Testnet (CC3) + Solidity 0.8.28
-- **Wallet:** MetaMask with auto-network switch
+- **Blockchain:** Creditcoin Testnet (CC3) + Solidity 0.8.20
+- **Wallet:** MetaMask / WalletConnect / any EIP-1193 wallet
+- **Deployment:** Vercel (Frontend + Backend)
 
 ---
 
