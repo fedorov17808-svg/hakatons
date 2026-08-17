@@ -1,21 +1,16 @@
 {
   "name": "CreditPulse AI",
   "short_name": "CreditPulse",
-  "description": "Autonomous RWA Risk Assessment on Creditcoin",
+  "description": "Autonomous RWA Risk Assessment powered by AI and Creditcoin blockchain",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#020617",
-  "theme_color": "#06b6d4",
+  "theme_color": "#020617",
   "icons": [
     {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }

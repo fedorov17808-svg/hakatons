@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     description: 'Real-time DeFi credit risk scoring powered by AI agents, DeFiLlama oracles, and Creditcoin blockchain',
     type: 'website',
     siteName: 'CreditPulse AI',
-    url: 'https://creditpulse.ai',
+    url: 'https://frontend-gamma-pink-41.vercel.app',
   },
   twitter: {
     card: 'summary_large_image',

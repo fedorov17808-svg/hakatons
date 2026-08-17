@@ -124,9 +124,9 @@ export default function Home() {
     try {
       const saved = localStorage.getItem("cp_history");
       if (saved) {
-        try { setHistory(JSON.parse(saved)); } catch (e) { console.warn('Failed to parse history:', e); }
+        try { setHistory(JSON.parse(saved)); } catch { /* corrupted history, ignore */ }
       }
-    } catch (err) { console.warn('localStorage unavailable:', err); }
+    } catch { /* localStorage unavailable in some environments */ }
   }, []);
 
   useEffect(() => {
@@ -157,7 +157,7 @@ export default function Home() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
-    } catch (e) { console.warn('Audio context error:', e); }
+    } catch { /* AudioContext may not be available */ }
   };
 
   const switchToCreditcoin = async () => {
@@ -185,8 +185,8 @@ export default function Home() {
               blockExplorerUrls: ['https://creditcoin-testnet.blockscout.com']
             }]
           });
-        } catch (addErr) {
-          // Error adding network
+        } catch {
+          setError('Failed to add Creditcoin network to wallet');
         }
       }
     }

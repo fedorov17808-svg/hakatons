@@ -1,4 +1,4 @@
-# hashlib removed — scoring uses real DeFiLlama data, not address hashing
+# CreditPulse AI Engine — Autonomous RWA Risk Assessment
 import json
 import logging
 import math
@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 
 SERVER_START_TIME = time.time()
+_stats_lock = threading.Lock()
 STATS = {
     'total_analyses': 0,
     'total_records': 0
@@ -68,7 +69,11 @@ async def validation_exception_handler(request, exc):
     return JSONResponse(status_code=422, content={"detail": "Validation error", "error_code": "UNPROCESSABLE_ENTITY"})
 
 cors_origins = os.getenv("CORS_ORIGINS")
-allow_origins = cors_origins.split(",") if cors_origins else ["http://localhost:3000"]
+allow_origins = cors_origins.split(",") if cors_origins else [
+    "http://localhost:3000",
+    "https://frontend-gamma-pink-41.vercel.app",
+    "https://creditpulse-ai.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware, 
@@ -171,6 +176,79 @@ def get_protocols_cached():
         return _protocol_cache['data'] if _protocol_cache['data'] else []
 
 
+def compute_scores(tvl: float, change_1d, change_7d, category: str, audits, chains_count: int, listed_at: int) -> dict:
+    """
+    Deterministic scoring engine — single source of truth.
+    
+    Used by both /api/analyze and /api/verify to ensure identical results.
+    All inputs are RAW DeFiLlama data fields.
+    
+    Audits field from DeFiLlama:
+      - "0" = no audit info
+      - "2" = audit exists but unverified (treated as no audit for scoring)
+      - any other value = verified audit present
+    """
+    # 1. Liquidity: logarithmic scale of TVL
+    if tvl > 0:
+        liquidity = min(100, max(0, int(math.log10(tvl) * 10)))
+    else:
+        liquidity = 10
+    
+    # 2. Collateral: base depends on protocol category, penalized by 7d volatility
+    collateral_base = 50
+    cat = category.lower() if category else ""
+    if cat in ["lending", "cdp", "rwa"]:
+        collateral_base = 85
+    elif cat in ["dex", "bridge"]:
+        collateral_base = 65
+    collateral = collateral_base
+    if change_7d is not None:
+        collateral -= min(40, int(abs(change_7d)))
+    collateral = min(100, max(0, collateral))
+    
+    # 3. Security: base + audit bonus + multi-chain bonus
+    has_verified_audit = str(audits) not in ["0", "2", "", "None", "False"]
+    security_base = 40
+    if has_verified_audit:
+        security_base += 30
+    security_base += min(30, chains_count * 5)
+    security = min(100, max(0, security_base))
+    
+    # 4. Volatility: 100 minus penalties for price movement
+    volatility_score = 100
+    if change_1d is not None:
+        volatility_score -= int(abs(change_1d) * 3)
+    if change_7d is not None:
+        volatility_score -= int(abs(change_7d) * 1.5)
+    volatility_score = min(100, max(0, volatility_score))
+    
+    # 5. Governance: higher for established DeFi categories
+    gov_base = 40
+    if cat in ["lending", "dex", "yield farming"]:
+        gov_base = 75
+    governance = min(100, max(0, gov_base))
+    
+    # 6. Audit track record: based on audit presence, chain diversity, and protocol age
+    audit_base = 85 if has_verified_audit else 30
+    age_months = 0
+    if listed_at:
+        age_months = max(0, (time.time() - listed_at) / (30 * 24 * 3600))
+    audit = min(100, audit_base + chains_count * 2 + int(age_months))
+    
+    overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
+    overall = max(0, min(100, overall))
+    
+    return {
+        "overall": overall,
+        "liquidity": liquidity,
+        "collateral": collateral,
+        "security": security,
+        "volatility_score": volatility_score,
+        "governance": governance,
+        "audit": audit,
+    }
+
+
 # Known contract addresses → DeFiLlama slug mapping
 KNOWN_CONTRACTS = {
     "0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2": "aave",
@@ -226,7 +304,7 @@ def health():
     
     Returns the status of the service, API version, and connected blockchain network.
     """
-    return {"status": "ok", "version": "1.0.0", "chain": "creditcoin-testnet"}
+    return {"status": "ok", "version": "3.1.0", "chain": "creditcoin-testnet"}
 
 @app.get("/api/stats", tags=['Health'])
 def get_stats():
@@ -256,7 +334,8 @@ def api_analyze(request: Request, req: AnalyzeRequest):
 
 def process_analysis(address: str):
     """Process risk analysis for a given smart contract address."""
-    STATS['total_analyses'] += 1
+    with _stats_lock:
+        STATS['total_analyses'] += 1
     start_time = time.time()
     
     if address.lower() == "0x" + "0" * 40:
@@ -313,55 +392,22 @@ def process_analysis(address: str):
             "fetched_at": int(time.time()),
         }
         
-        # 1. Liquidity based on TVL compared to market
-        if tvl > 0:
-            liquidity = min(100, max(0, int(math.log10(tvl) * 10)))
-        else:
-            liquidity = 10
-            
-        # 2. Collateral based on category and TVL stability
-        collateral_base = 50
-        if category.lower() in ["lending", "cdp", "rwa"]:
-            collateral_base = 85
-        elif category.lower() in ["dex", "bridge"]:
-            collateral_base = 65
-            
-        collateral = collateral_base
-        if change_7d is not None:
-            collateral -= min(40, int(abs(change_7d)))
-            
-        collateral = min(100, max(0, collateral))
-
-        # 3. Security based on audits, chains
-        security_base = 40
-        if audits not in ["0", "2", None, False, ""]:
-            security_base += 30
-        security_base += min(30, len(chains) * 5)
-        security = min(100, max(0, security_base))
-        
-        # 4. Volatility based on TVL change percentages
-        volatility_score = 100
-        if change_1d is not None:
-            volatility_score -= int(abs(change_1d) * 3)
-        if change_7d is not None:
-            volatility_score -= int(abs(change_7d) * 1.5)
-        volatility_score = min(100, max(0, volatility_score))
-        
-        # 5. Governance based on category
-        gov_base = 40
-        if category.lower() in ["lending", "dex", "yield farming"]:
-            gov_base = 75
-        governance = min(100, max(0, gov_base))
-        
-        # 6. Audit (Track Record) based on audits, chain count, and age proxy
-        audit_base = 85 if audits not in ["0", "2", None, False, ""] else 30
-        age_months = 0
-        if listed_at:
-            age_months = max(0, (time.time() - listed_at) / (30 * 24 * 3600))
-        audit = min(100, audit_base + len(chains) * 2 + int(age_months))
+        # Use the single scoring engine
+        scores = compute_scores(
+            tvl=tvl, change_1d=change_1d, change_7d=change_7d,
+            category=category, audits=audits,
+            chains_count=len(chains), listed_at=listed_at
+        )
+        liquidity = scores["liquidity"]
+        collateral = scores["collateral"]
+        security = scores["security"]
+        volatility_score = scores["volatility_score"]
+        governance = scores["governance"]
+        audit = scores["audit"]
         
     else:
         # Unknown protocol - penalize score significantly
+        scores = compute_scores(tvl=0, change_1d=None, change_7d=None, category="", audits="0", chains_count=0, listed_at=0)
         liquidity = 15
         collateral = 20
         security = 10
@@ -373,13 +419,6 @@ def process_analysis(address: str):
             "fetched_at": int(time.time()),
             "match": "NOT_FOUND",
         }
-
-    liquidity = max(0, min(100, liquidity))
-    collateral = max(0, min(100, collateral))
-    security = max(0, min(100, security))
-    volatility_score = max(0, min(100, volatility_score))
-    governance = max(0, min(100, governance))
-    audit = max(0, min(100, audit))
 
     overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
     overall = max(0, min(100, overall))
@@ -455,7 +494,7 @@ class RecordRequest(BaseModel):
             raise ValueError('Invalid Ethereum address')
         return v
         
-    @validator('score', 'liquidity', 'collateral', 'audit')
+    @validator('score', 'liquidity', 'collateral', 'audit', 'security', 'volatility', 'governance')
     def check_bounds(cls, v):
         if not (0 <= v <= 100):
             raise ValueError('Value must be between 0 and 100')
@@ -473,43 +512,57 @@ def api_record(request: Request, req: RecordRequest, api_key: str = Depends(veri
 
 def process_record(req: RecordRequest):
     """Process recording a risk score proof on-chain."""
-    STATS['total_records'] += 1
+    with _stats_lock:
+        STATS['total_records'] += 1
 
     now = time.time()
+    # Cleanup old entries to prevent memory leak (H4)
+    expired = [k for k, v in _recent_records.items() if (now - v) > RECORD_COOLDOWN * 10]
+    for k in expired:
+        _recent_records.pop(k, None)
+    
     if req.address in _recent_records and (now - _recent_records[req.address]) < RECORD_COOLDOWN:
         raise HTTPException(status_code=429, detail="Too Many Requests")
     _recent_records[req.address] = now
 
     if not PRIVATE_KEY:
         raise HTTPException(status_code=500, detail="Server misconfiguration: missing private key")
+    
+    # Require data_hash — no fallback to score-based hash (C3)
+    if not req.data_hash or not req.data_hash.startswith("0x") or len(req.data_hash) != 66:
+        raise HTTPException(status_code=400, detail="data_hash is required and must be a valid 0x-prefixed 32-byte hash")
+    
     try:
         w3 = Web3(Web3.HTTPProvider(RPC_URL))
         account = w3.eth.account.from_key(PRIVATE_KEY)
         contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
         
-        # Convert address string to checksum address for the contract call
         asset_address = Web3.to_checksum_address(req.address)
-        
-        # Use data_hash from frontend (computed from RAW DeFiLlama inputs)
-        # NOT from computed scores — this is the key for verifiability
-        if req.data_hash and req.data_hash.startswith("0x"):
-            data_hash = bytes.fromhex(req.data_hash[2:])
-        else:
-            # Fallback: compute from scores (less ideal but backwards-compatible)
-            data_string = f"{req.address}:{req.score}:{req.liquidity}:{req.collateral}:{req.audit}:{req.security}:{req.volatility}:{req.governance}:{req.tvl}:{req.protocol_name}"
-            data_hash = Web3.keccak(text=data_string)
+        data_hash = bytes.fromhex(req.data_hash[2:])
         
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
-        tx = contract.functions.saveRiskReport(
-            asset_address, req.score, req.liquidity, req.collateral, req.audit,
-            req.security, req.volatility, req.governance, data_hash
-        ).build_transaction({
+        
+        # Build tx with estimated gas (H3)
+        chain_id = int(os.getenv("CHAIN_ID", "102031"))
+        tx_params = {
             'from': account.address,
             'nonce': nonce,
-            'gas': 300000,
-            'gasPrice': w3.to_wei('20', 'gwei'),
-            'chainId': 102031,
-        })
+            'gasPrice': w3.eth.gas_price or w3.to_wei('20', 'gwei'),
+            'chainId': chain_id,
+        }
+        
+        fn_call = contract.functions.saveRiskReport(
+            asset_address, req.score, req.liquidity, req.collateral, req.audit,
+            req.security, req.volatility, req.governance, data_hash
+        )
+        
+        try:
+            estimated_gas = fn_call.estimate_gas(tx_params)
+            tx_params['gas'] = int(estimated_gas * 1.2)  # 20% buffer
+        except Exception:
+            tx_params['gas'] = 300000  # safe fallback
+        
+        tx = fn_call.build_transaction(tx_params)
         
         signed = account.sign_transaction(tx)
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
@@ -522,6 +575,8 @@ def process_record(req: RecordRequest):
             "txHash": tx_hash_hex,
             "status": "pending",
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f'Record transaction failed: {e}')
         raise HTTPException(status_code=500, detail='Transaction failed. Please try again.')
@@ -571,62 +626,39 @@ def api_verify(req: VerifyRequest):
     Anyone can use this to verify that a score stored on-chain matches the source data.
     The response includes the computed dataHash — compare it with the on-chain dataHash.
     """
-    # Reproduce exact scoring formula from raw inputs
-    if req.tvl > 0:
-        liquidity = min(100, max(0, int(math.log10(req.tvl) * 10)))
-    else:
-        liquidity = 10
+    # Use the SAME scoring engine as /api/analyze (C1 fix)
+    scores = compute_scores(
+        tvl=req.tvl, change_1d=req.change_1d, change_7d=req.change_7d,
+        category=req.category, audits=req.audits,
+        chains_count=req.chains_count, listed_at=req.listed_at
+    )
     
-    collateral_base = 50
-    if req.category.lower() in ["lending", "cdp", "rwa"]:
-        collateral_base = 85
-    elif req.category.lower() in ["dex", "bridge"]:
-        collateral_base = 65
-    collateral = collateral_base
-    if req.change_7d is not None:
-        collateral -= min(40, int(abs(req.change_7d)))
-    collateral = min(100, max(0, collateral))
-    
-    security_base = 40
-    if req.audits not in ["0", "2", None, False, ""]:
-        security_base += 30
-    security_base += min(30, req.chains_count * 5)
-    security = min(100, max(0, security_base))
-    
-    volatility_score = 100
-    if req.change_1d is not None:
-        volatility_score -= int(abs(req.change_1d) * 3)
-    if req.change_7d is not None:
-        volatility_score -= int(abs(req.change_7d) * 1.5)
-    volatility_score = min(100, max(0, volatility_score))
-    
-    gov_base = 40
-    if req.category.lower() in ["lending", "dex", "yield farming"]:
-        gov_base = 75
-    governance = min(100, max(0, gov_base))
-    
-    audit_base = 85 if req.audits not in ["0", "2", None, False, ""] else 30
-    age_months = 0
-    if req.listed_at:
-        age_months = max(0, (time.time() - req.listed_at) / (30 * 24 * 3600))
-    audit = min(100, audit_base + req.chains_count * 2 + int(age_months))
-    audit = min(100, audit)
-    
-    overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
-    overall = max(0, min(100, overall))
+    # Compute data_hash from these raw inputs (C2 fix)
+    raw_inputs_for_hash = {
+        "tvl": req.tvl,
+        "change_1d": req.change_1d,
+        "change_7d": req.change_7d,
+        "category": req.category,
+        "audits": req.audits,
+        "chains_count": req.chains_count,
+        "listed_at": req.listed_at,
+    }
+    raw_data_string = json.dumps(raw_inputs_for_hash, sort_keys=True, default=str)
+    data_hash = Web3.keccak(text=raw_data_string).hex()
     
     return {
         "verified_scores": {
-            "overall": overall,
-            "liquidity": liquidity,
-            "collateral": collateral,
-            "security": security,
-            "volatility": volatility_score,
-            "governance": governance,
-            "audit": audit,
+            "overall": scores["overall"],
+            "liquidity": scores["liquidity"],
+            "collateral": scores["collateral"],
+            "security": scores["security"],
+            "volatility": scores["volatility_score"],
+            "governance": scores["governance"],
+            "audit": scores["audit"],
         },
+        "data_hash": data_hash,
         "formula_version": "1.0",
-        "note": "These scores are computed deterministically from the provided raw inputs. Compare with on-chain data to verify integrity."
+        "note": "These scores are computed deterministically from the provided raw inputs. Compare data_hash with the on-chain dataHash to verify integrity."
     }
 
 
