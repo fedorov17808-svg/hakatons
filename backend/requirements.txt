@@ -4,3 +4,4 @@ pydantic>=2.0
 python-dotenv>=1.0.0
 web3
 slowapi
+# v3.2.0 — Gemini AI narrative via REST (no SDK)
