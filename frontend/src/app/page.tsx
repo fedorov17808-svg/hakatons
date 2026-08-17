@@ -21,6 +21,21 @@ interface RiskResult {
   governance?: number;
   verdict?: string;
   radarData?: { subject: string; A: number }[];
+  formula_version?: string;
+  raw_inputs?: {
+    tvl?: number;
+    change_1d?: number | null;
+    change_7d?: number | null;
+    category?: string;
+    audits?: string;
+    chains_count?: number;
+    chains?: string[];
+    listed_at?: number;
+    data_source?: string;
+    fetched_at?: number;
+    match?: string;
+  };
+  data_hash?: string;
 }
 
 const getScoreColor = (score: number) => {
@@ -287,6 +302,7 @@ export default function Home() {
           governance: Math.round(result.governance || 0),
           tvl: result.market_benchmark || 0,
           protocol_name: result.protocol_name || "Unknown",
+          data_hash: result.data_hash || "",
         }),
       });
 
@@ -691,20 +707,59 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* Data Provenance Hash */}
-                      <p className="text-[10px] text-slate-500 font-mono text-center">
-                        dataHash: keccak256(scores + tvl + protocol) stored on-chain
-                      </p>
+                      {/* Data Provenance — RAW inputs that went into the score */}
+                      {result?.raw_inputs && Object.keys(result.raw_inputs).length > 0 && (
+                        <div className="w-full max-w-sm bg-slate-950/80 rounded-xl border border-slate-800/60 p-3">
+                          <p className="text-[10px] text-cyan-400 font-semibold uppercase tracking-wider mb-2">📊 Source Data (DeFiLlama)</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] font-mono">
+                            {result.raw_inputs.tvl !== undefined && (
+                              <><span className="text-slate-500">TVL</span><span className="text-slate-300">${Number(result.raw_inputs.tvl).toLocaleString(undefined, {maximumFractionDigits: 0})}</span></>
+                            )}
+                            {result.raw_inputs.change_1d !== undefined && result.raw_inputs.change_1d !== null && (
+                              <><span className="text-slate-500">Change 1d</span><span className={`${Number(result.raw_inputs.change_1d) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{Number(result.raw_inputs.change_1d).toFixed(2)}%</span></>
+                            )}
+                            {result.raw_inputs.change_7d !== undefined && result.raw_inputs.change_7d !== null && (
+                              <><span className="text-slate-500">Change 7d</span><span className={`${Number(result.raw_inputs.change_7d) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{Number(result.raw_inputs.change_7d).toFixed(2)}%</span></>
+                            )}
+                            {result.raw_inputs.category && (
+                              <><span className="text-slate-500">Category</span><span className="text-slate-300">{result.raw_inputs.category}</span></>
+                            )}
+                            {result.raw_inputs.chains_count !== undefined && (
+                              <><span className="text-slate-500">Chains</span><span className="text-slate-300">{result.raw_inputs.chains_count}</span></>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Data Hash — the verifiable provenance */}
+                      {result?.data_hash && (
+                        <div className="text-center">
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            dataHash: {result.data_hash.slice(0, 14)}...{result.data_hash.slice(-10)}
+                          </p>
+                          <p className="text-[9px] text-slate-600 mt-0.5">keccak256(raw_inputs) — stored on-chain, independently verifiable</p>
+                        </div>
+                      )}
                       
-                      <a
-                        href={`${EXPLORER_URL}${txHash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="View transaction on Creditcoin block explorer"
-                        className="inline-flex items-center justify-center px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 shadow-sm w-fit focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-                      >
-                        View on Explorer ↗
-                      </a>
+                      <div className="flex gap-2">
+                        <a
+                          href={`${EXPLORER_URL}${txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="View transaction on Creditcoin block explorer"
+                          className="inline-flex items-center justify-center px-5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 shadow-sm focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
+                        >
+                          Explorer ↗
+                        </a>
+                        <a
+                          href={`${API_URL}/api/methodology`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center px-5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-sm font-medium rounded-xl transition-all duration-200 ease-out active:scale-95 border border-slate-700 shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none"
+                        >
+                          Verify Formula ↗
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>
