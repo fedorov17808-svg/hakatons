@@ -79,7 +79,7 @@ Try these real DeFi protocol addresses to test the platform:
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract Address** | [`0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b`](https://creditcoin-testnet.blockscout.com/address/0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b) |
+| **Smart Contract Address** | [`0xa643984b1e111B41644671E74dc1A2B93E6F2ff1`](https://creditcoin-testnet.blockscout.com/address/0xa643984b1e111B41644671E74dc1A2B93E6F2ff1) |
 | **Interactive API Docs** | `http://localhost:8000/docs` (Swagger UI / OpenAPI) |
 
 ### 📜 Verified On-Chain Transaction Examples
@@ -138,7 +138,7 @@ graph LR
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │                CreditPulseScore.sol                        │  │
-│  │  0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b               │  │
+│  │  0xa643984b1e111B41644671E74dc1A2B93E6F2ff1               │  │
 │  │                                                            │  │
 │  │  • mapping(string => RiskReport) assetReports              │  │
 │  │  • saveRiskReport(address, score, liq, col, audit)         │  │
@@ -306,13 +306,13 @@ contract CreditPulseScore {
     /// @param _collateral The collateral quality score
     /// @param _auditScore The audit status score
     function saveRiskReport(
-        string memory _assetAddress,
-        uint256 _overallScore,
-        uint256 _liquidity,
-        uint256 _collateral,
-        uint256 _auditScore
+        address _assetAddress,
+        uint8 _overallScore,
+        uint8 _liquidity,
+        uint8 _collateral,
+        uint8 _auditScore
     ) public onlyOwner {
-        require(bytes(_assetAddress).length > 0, "Empty asset address");
+        require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_liquidity <= 100, "Liquidity exceeds maximum");
         require(_collateral <= 100, "Collateral exceeds maximum");
@@ -337,7 +337,7 @@ contract CreditPulseScore {
     /// @notice Retrieves the latest risk report for an asset
     /// @param _assetAddress The address of the asset
     /// @return RiskReport The latest risk report for the given asset
-    function getReport(string memory _assetAddress) public view returns (RiskReport memory) {
+    function getRiskReport(address _assetAddress) public view returns (RiskReport memory) {
         return assetReports[_assetAddress];
     }
     

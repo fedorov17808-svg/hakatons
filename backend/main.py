@@ -1,4 +1,4 @@
-import hashlib
+# hashlib removed — scoring uses real DeFiLlama data, not address hashing
 import json
 import logging
 import math
@@ -261,7 +261,7 @@ def process_analysis(address: str):
             "request_id": str(uuid.uuid4())[:8]
         }
 
-    addr_hash = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
+    # Score computation is purely data-driven from DeFiLlama oracle below
     
     protocols = get_protocols_cached()
     if protocols == []:
@@ -404,8 +404,8 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 _recent_records = {}
 RECORD_COOLDOWN = 30
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b")
-CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"string","name":"_assetAddress","type":"string"},{"internalType":"uint256","name":"_overallScore","type":"uint256"},{"internalType":"uint256","name":"_liquidity","type":"uint256"},{"internalType":"uint256","name":"_collateral","type":"uint256"},{"internalType":"uint256","name":"_auditScore","type":"uint256"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xa643984b1e111B41644671E74dc1A2B93E6F2ff1")
+CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
 
 class RecordRequest(BaseModel):
     address: str
@@ -454,9 +454,12 @@ def process_record(req: RecordRequest):
         account = w3.eth.account.from_key(PRIVATE_KEY)
         contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
         
+        # Convert address string to checksum address for the contract call
+        asset_address = Web3.to_checksum_address(req.address)
+        
         nonce = w3.eth.get_transaction_count(account.address, 'pending')
         tx = contract.functions.saveRiskReport(
-            req.address, req.score, req.liquidity, req.collateral, req.audit
+            asset_address, req.score, req.liquidity, req.collateral, req.audit
         ).build_transaction({
             'from': account.address,
             'nonce': nonce,
@@ -466,15 +469,8 @@ def process_record(req: RecordRequest):
         })
         
         signed = account.sign_transaction(tx)
-        try:
-            tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-            tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
-        except Exception as _e:
-            if 'insufficient funds' in str(_e).lower() or 'insufficient funds' in repr(_e).lower():
-                logger.warning("Mocking txHash due to insufficient testnet funds")
-                tx_hash_hex = "0x" + "a" * 64
-            else:
-                raise _e
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
         
         logger.info(f"Record request for {req.address}: tx hash {tx_hash_hex}")
         
@@ -497,8 +493,7 @@ def get_tx_status(tx_hash: str):
     if not re.match(r"^0x[a-fA-F0-9]{64}$", tx_hash):
         raise HTTPException(status_code=400, detail="Invalid tx hash")
         
-    if tx_hash == "0x" + "a" * 64:
-        return {"status": "confirmed", "blockNumber": 999999}
+    # No fake tx hash fallback — all transactions are real
         
     try:
         w3 = Web3(Web3.HTTPProvider(RPC_URL))

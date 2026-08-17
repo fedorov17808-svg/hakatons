@@ -1,7 +1,7 @@
 import { run } from 'hardhat';
 
 async function main() {
-  const contractAddress = process.env.CONTRACT_ADDRESS || '0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b';
+  const contractAddress = process.env.CONTRACT_ADDRESS || '0xa643984b1e111B41644671E74dc1A2B93E6F2ff1';
   console.log('Verifying contract at:', contractAddress);
   
   try {

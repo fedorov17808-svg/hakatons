@@ -4,7 +4,7 @@ async function main() {
   const address = process.env.ASSET_ADDRESS || '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2';
   const score = parseInt(process.env.SCORE || '75');
   
-  const contractAddress = '0xa3AD1879Af301B7c158ff9844541BA0Ca8Eb353b';
+  const contractAddress = '0xa643984b1e111B41644671E74dc1A2B93E6F2ff1';
   const contract = await ethers.getContractAt('CreditPulseScore', contractAddress);
   
   console.log(`Submitting risk report for ${address} with score ${score}...`);
