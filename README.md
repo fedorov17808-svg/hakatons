@@ -79,7 +79,7 @@ Try these real DeFi protocol addresses to test the platform:
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract Address** | [`0xa643984b1e111B41644671E74dc1A2B93E6F2ff1`](https://creditcoin-testnet.blockscout.com/address/0xa643984b1e111B41644671E74dc1A2B93E6F2ff1) |
+| **Smart Contract Address** | [`0xcdfEe044bbA3defc624715f4F5695E0b3910998E`](https://creditcoin-testnet.blockscout.com/address/0xcdfEe044bbA3defc624715f4F5695E0b3910998E) (v2.0) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
 | **Interactive API Docs** | [**Swagger UI (Production)**](https://backend-lilac-nine-97.vercel.app/docs) |
