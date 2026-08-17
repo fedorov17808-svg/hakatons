@@ -82,25 +82,55 @@ Try these real DeFi protocol addresses to test the platform:
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract (ASC)** | [`0x5C06f67a91B772f15909aFE88Cd63e603379C1f7`](https://creditcoin-testnet.blockscout.com/address/0x5C06f67a91B772f15909aFE88Cd63e603379C1f7#code) (v3.0-attestcoin) |
+| **Smart Contract (ASC)** | [`0x7eda50D76067D0e9E78822D5581AA31D084c5C2f`](https://creditcoin-testnet.blockscout.com/address/0x7eda50D76067D0e9E78822D5581AA31D084c5C2f#code) (v3.1-hardened) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
 | **Interactive API Docs** | [**Swagger UI (Production)**](https://backend-lilac-nine-97.vercel.app/docs) |
+| **Scoring Formula** | [**GET /api/methodology**](https://backend-lilac-nine-97.vercel.app/api/methodology) |
 
 ### 🔗 Attestcoin Protocol Integration
 
 CreditPulse AI leverages the **Attestcoin Protocol (USC)** for trustless cross-chain data verification:
 
 - **Precompile `0x0FD2`** — Native Query Verifier on Creditcoin validates proofs
-- **`dataHash`** — Every report stores `keccak256(scores + tvl + protocol)` on-chain
+- **`dataHash`** — Every report stores `keccak256(raw_inputs)` on-chain, where `raw_inputs` is the DeFiLlama source data (TVL, change_1d, change_7d, category, audits, chains, listed_at)
 - **Verifiable provenance** — Judges can independently verify that scores match source data
 - Contract function `verifyDataIntegrity()` allows anyone to check data consistency
+- **19 Hardhat unit tests** validate all contract security properties
+
+### 🔍 How to Verify Scores (For Judges)
+
+CreditPulse proves decisions are made on data that can be **VERIFIED**, not data you have to **TRUST**.
+
+**Step 1: Get raw source data**
+```bash
+curl -s -X POST https://backend-lilac-nine-97.vercel.app/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"address":"0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"}' | jq '.raw_inputs, .data_hash, .score'
+```
+
+**Step 2: Reproduce the score independently**
+```bash
+curl -s -X POST https://backend-lilac-nine-97.vercel.app/api/verify \
+  -H "Content-Type: application/json" \
+  -d '{"tvl":14296070586.55,"change_1d":0.917,"change_7d":0.833,"category":"Lending","audits":"2","chains_count":21,"listed_at":1648776877}'
+```
+→ Returns the **same score** (88) computed deterministically from raw inputs.
+
+**Step 3: Check on-chain**
+- Open the transaction on [Blockscout](https://creditcoin-testnet.blockscout.com)
+- Verify the `dataHash` parameter matches the hash from Step 1
+- Call `verifyDataIntegrity()` on the contract to confirm
+
+**Step 4: Review the formula**
+```bash
+curl -s https://backend-lilac-nine-97.vercel.app/api/methodology | jq
+```
+→ Returns the complete scoring methodology with formulas for each dimension.
 
 ### 📜 Verified On-Chain Transaction Examples
 
-Every risk report generates an on-chain transaction calling `saveRiskReport(...)` on Creditcoin with a `dataHash` for verifiable provenance. Transactions can be verified on: https://creditcoin-testnet.blockscout.com/
-
-* [`0xda0d2213a6149c7cbb76baaed6832ea07ecf4f3bfc931c37f5a59d86e505bd39`](https://creditcoin-testnet.blockscout.com/tx/0xda0d2213a6149c7cbb76baaed6832ea07ecf4f3bfc931c37f5a59d86e505bd39) — Aave V3 Risk Score: 88/100 (ASC v3.0, with dataHash)
+* [`0x73bcae88da2bfe8692b94801ce1522825f7821529ff0742affa10268d815485c`](https://creditcoin-testnet.blockscout.com/tx/0x73bcae88da2bfe8692b94801ce1522825f7821529ff0742affa10268d815485c) — Aave V3: 88/100 (v3.1-hardened, RAW dataHash)
 
 ---
 

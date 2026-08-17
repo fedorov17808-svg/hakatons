@@ -150,20 +150,25 @@ def fetch_defillama_data():
         return []
 
 _protocol_cache = {'data': None, 'timestamp': 0}
+_cache_lock = threading.Lock()
 CACHE_TTL = 900  # 15 minutes
 
 def get_protocols_cached():
     """Retrieve DeFiLlama protocol data from cache or fetch if expired."""
     now = time.time()
-    if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL:
-        logger.info("DeFiLlama cache hit")
-        return _protocol_cache['data']
+    with _cache_lock:
+        if _protocol_cache['data'] and (now - _protocol_cache['timestamp']) < CACHE_TTL:
+            logger.info("DeFiLlama cache hit")
+            return _protocol_cache['data']
+    
     logger.info("DeFiLlama cache miss, fetching data")
     data = fetch_defillama_data()
-    if data:
-        _protocol_cache['data'] = data
-        _protocol_cache['timestamp'] = now
-    return _protocol_cache['data'] if _protocol_cache['data'] else []
+    
+    with _cache_lock:
+        if data:
+            _protocol_cache['data'] = data
+            _protocol_cache['timestamp'] = time.time()
+        return _protocol_cache['data'] if _protocol_cache['data'] else []
 
 
 # Known contract addresses → DeFiLlama slug mapping
@@ -426,7 +431,7 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 _recent_records = {}
 RECORD_COOLDOWN = 30
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5C06f67a91B772f15909aFE88Cd63e603379C1f7")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x7eda50D76067D0e9E78822D5581AA31D084c5C2f")
 CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"}]')
 
 class RecordRequest(BaseModel):

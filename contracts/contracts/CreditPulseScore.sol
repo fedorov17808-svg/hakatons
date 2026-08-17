@@ -76,6 +76,25 @@ contract CreditPulseASC {
         emit OwnershipTransferred(oldOwner, newOwner);
     }
 
+    /// @dev Validates all score fields are within [0, 100]
+    function _validateScores(
+        uint8 _overallScore,
+        uint8 _liquidity,
+        uint8 _collateral,
+        uint8 _auditScore,
+        uint8 _security,
+        uint8 _volatility,
+        uint8 _governance
+    ) internal pure {
+        require(_overallScore <= 100, "Overall score exceeds 100");
+        require(_liquidity <= 100, "Liquidity score exceeds 100");
+        require(_collateral <= 100, "Collateral score exceeds 100");
+        require(_auditScore <= 100, "Audit score exceeds 100");
+        require(_security <= 100, "Security score exceeds 100");
+        require(_volatility <= 100, "Volatility score exceeds 100");
+        require(_governance <= 100, "Governance score exceeds 100");
+    }
+
     /// @notice Saves a risk report WITH cross-chain proof verification via Attestcoin
     /// @dev Calls the 0x0FD2 precompile to verify the proof. Reverts if proof is invalid.
     /// @param _sourceChainId The chain ID of the source chain (e.g., 11155111 for Sepolia)
@@ -96,27 +115,9 @@ contract CreditPulseASC {
         bytes32 _dataHash
     ) external onlyOwner {
         require(_assetAddress != address(0), "Invalid asset address");
-        require(_overallScore <= 100, "Score exceeds maximum");
+        _validateScores(_overallScore, _liquidity, _collateral, _auditScore, _security, _volatility, _governance);
 
-        bool verified = false;
-        bytes32 proofHash = bytes32(0);
-
-        // Attempt cross-chain verification via Attestcoin precompile
-        if (_proof.length > 0) {
-            (bool success, ) = BLOCK_PROVER.call(
-                abi.encodeWithSignature(
-                    "verifyAndEmit(uint32,bytes,bytes)",
-                    _sourceChainId, _proof, _txData
-                )
-            );
-            if (success) {
-                verified = true;
-                proofHash = keccak256(_proof);
-                verifiedProofCount++;
-                emit CrossChainProofVerified(_assetAddress, _sourceChainId, proofHash, block.timestamp);
-            }
-        }
-
+        // CEI Pattern: State changes FIRST, then external call
         RiskReport memory report = RiskReport({
             assetAddress: _assetAddress,
             overallScore: _overallScore,
@@ -127,20 +128,38 @@ contract CreditPulseASC {
             volatility: _volatility,
             governance: _governance,
             dataHash: _dataHash,
-            proofHash: proofHash,
+            proofHash: bytes32(0),
             timestamp: uint40(block.timestamp),
             verifiedBy: msg.sender,
-            crossChainVerified: verified
+            crossChainVerified: false
         });
 
         assetReportHistory[_assetAddress].push(report);
+        uint256 idx = assetReportHistory[_assetAddress].length - 1;
         reportCount++;
 
-        uint256 idx = assetReportHistory[_assetAddress].length - 1;
+        // External Interaction: Attempt cross-chain verification via Attestcoin precompile
+        if (_proof.length > 0) {
+            (bool success, ) = BLOCK_PROVER.call(
+                abi.encodeWithSignature(
+                    "verifyAndEmit(uint32,bytes,bytes)",
+                    _sourceChainId, _proof, _txData
+                )
+            );
+            if (success) {
+                // Update the already-stored report with proof data
+                assetReportHistory[_assetAddress][idx].crossChainVerified = true;
+                assetReportHistory[_assetAddress][idx].proofHash = keccak256(_proof);
+                verifiedProofCount++;
+                emit CrossChainProofVerified(_assetAddress, _sourceChainId, keccak256(_proof), block.timestamp);
+            }
+        }
+
         emit ReportSaved(
             _assetAddress, _overallScore, _liquidity, _collateral, 
             _auditScore, _security, _volatility, _governance,
-            _dataHash, verified, msg.sender, block.timestamp, idx
+            _dataHash, assetReportHistory[_assetAddress][idx].crossChainVerified, 
+            msg.sender, block.timestamp, idx
         );
     }
 
@@ -158,7 +177,7 @@ contract CreditPulseASC {
         bytes32 _dataHash
     ) external onlyOwner {
         require(_assetAddress != address(0), "Invalid asset address");
-        require(_overallScore <= 100, "Score exceeds maximum");
+        _validateScores(_overallScore, _liquidity, _collateral, _auditScore, _security, _volatility, _governance);
 
         RiskReport memory report = RiskReport({
             assetAddress: _assetAddress,
