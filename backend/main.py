@@ -21,13 +21,6 @@ from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from web3 import Web3
 
-try:
-    import google.generativeai as genai
-    _GEMINI_AVAILABLE = True
-except ImportError:
-    _GEMINI_AVAILABLE = False
-    genai = None
-
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
@@ -42,17 +35,9 @@ STATS = {
     'total_records': 0
 }
 
-# --- Gemini AI client setup ---
+# --- Gemini AI setup (direct REST, no SDK dependency) ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-_gemini_model = None
-if _GEMINI_AVAILABLE and GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        _gemini_model = genai.GenerativeModel("gemini-1.5-flash")
-        logger.info("Gemini AI model initialized successfully")
-    except Exception as e:
-        logger.warning(f"Gemini AI init failed: {e}")
-        _gemini_model = None
+_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 def generate_risk_narrative(
     protocol_name: str,
@@ -65,8 +50,8 @@ def generate_risk_narrative(
     audits: str,
     verdict: str,
 ) -> str | None:
-    """Generate an AI-powered risk narrative using Gemini. Returns None if unavailable."""
-    if not _gemini_model:
+    """Generate AI risk narrative via Gemini REST API. Returns None if unavailable."""
+    if not GEMINI_API_KEY:
         return None
     try:
         tvl_b = tvl / 1e9 if tvl > 1e9 else tvl / 1e6
@@ -83,14 +68,24 @@ def generate_risk_narrative(
             f"Overall risk score: {overall}/100 ({verdict})\n"
             f"Write a factual, data-driven assessment. No fluff. Start with the protocol name."
         )
-        response = _gemini_model.generate_content(
-            prompt,
-            generation_config={"max_output_tokens": 120, "temperature": 0.3}
+        payload = json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 120, "temperature": 0.3}
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{_GEMINI_URL}?key={GEMINI_API_KEY}",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
         )
-        return response.text.strip()
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        text = result["candidates"][0]["content"]["parts"][0]["text"]
+        return text.strip()
     except Exception as e:
-        logger.warning(f"Gemini narrative generation failed: {e}")
+        logger.warning(f"Gemini narrative failed: {e}")
         return None
+
 
 app = FastAPI(
     title='CreditPulse AI Engine',
@@ -531,7 +526,7 @@ def process_analysis(address: str):
         "formula_version": "1.0",
         "raw_inputs": raw_inputs,
         "data_hash": data_hash,
-        "ai_powered": _gemini_model is not None,
+        "ai_powered": bool(GEMINI_API_KEY),
     }
     if ai_narrative:
         response["ai_narrative"] = ai_narrative
