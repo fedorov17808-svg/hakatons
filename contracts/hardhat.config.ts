@@ -16,6 +16,21 @@ const config: HardhatUserConfig = {
       chainId: 102031,
       accounts: [privateKey]
     }
+  },
+  etherscan: {
+    apiKey: {
+      creditcoin_testnet: "no-api-key-needed"
+    },
+    customChains: [
+      {
+        network: "creditcoin_testnet",
+        chainId: 102031,
+        urls: {
+          apiURL: "https://creditcoin-testnet.blockscout.com/api",
+          browserURL: "https://creditcoin-testnet.blockscout.com"
+        }
+      }
+    ]
   }
 };
 
