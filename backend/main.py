@@ -49,15 +49,25 @@ def generate_risk_narrative(
     chains_count: int,
     audits: str,
     verdict: str,
-) -> str | None:
-    """Generate AI risk narrative via Gemini REST API. Returns None if unavailable."""
+) -> tuple[str | None, int, str | None]:
+    """Generate AI risk narrative + risk adjustment via Gemini.
+    
+    Returns: (narrative_text, risk_adjustment, error_msg)
+    risk_adjustment is an integer from -10 to +10 that modifies the overall score.
+    """
     if not GEMINI_API_KEY:
-        return None, "GEMINI_API_KEY_MISSING"
+        return None, 0, "GEMINI_API_KEY_MISSING"
     try:
         tvl_b = tvl / 1e9 if tvl > 1e9 else tvl / 1e6
         tvl_unit = "B" if tvl > 1e9 else "M"
         prompt = (
-            f"You are a DeFi risk analyst. Analyze this protocol in exactly 2 concise sentences (max 60 words total):\n"
+            f"You are a DeFi risk analyst. Analyze this protocol and respond in EXACTLY this format:\n"
+            f"ADJUSTMENT: <integer from -10 to +10>\n"
+            f"NARRATIVE: <2 concise sentences, max 60 words>\n\n"
+            f"The ADJUSTMENT reflects risk factors NOT captured by the base formula:\n"
+            f"  Positive (+1 to +10): strong community, battle-tested code, institutional backing\n"
+            f"  Negative (-10 to -1): recent exploits, centralization risks, regulatory concerns\n"
+            f"  Zero (0): no additional factors identified\n\n"
             f"Protocol: {protocol_name}\n"
             f"Category: {category}\n"
             f"TVL: ${tvl_b:.1f}{tvl_unit}\n"
@@ -65,8 +75,8 @@ def generate_risk_narrative(
             f"7d change: {change_7d:+.2f}%\n"
             f"Chains: {chains_count}\n"
             f"Audited: {'Yes' if audits not in ['0', '2', '', None] else 'No'}\n"
-            f"Overall risk score: {overall}/100 ({verdict})\n"
-            f"Write a factual, data-driven assessment. No fluff. Start with the protocol name."
+            f"Base risk score: {overall}/100 ({verdict})\n"
+            f"Respond ONLY in the format above. Start with ADJUSTMENT:"
         )
         payload = json.dumps({
             "contents": [{"parts": [{"text": prompt}]}],
@@ -81,14 +91,27 @@ def generate_risk_narrative(
         with urllib.request.urlopen(req, timeout=10) as resp:
             result = json.loads(resp.read().decode("utf-8"))
         parts = result["candidates"][0]["content"]["parts"]
-        # Take ALL text parts — thoughtSignature is metadata, text field has actual response
         text = " ".join(p["text"] for p in parts if "text" in p).strip()
-        if len(text) > 10:
-            return text, None
-        return None, f"TEXT_TOO_SHORT:{repr(text[:30])}"
+        
+        # Parse ADJUSTMENT and NARRATIVE from structured response
+        risk_adjustment = 0
+        narrative = text  # fallback: use entire response as narrative
+        
+        adj_match = re.search(r"ADJUSTMENT:\s*([+-]?\d+)", text)
+        if adj_match:
+            risk_adjustment = max(-10, min(10, int(adj_match.group(1))))
+        
+        narr_match = re.search(r"NARRATIVE:\s*(.+)", text, re.DOTALL)
+        if narr_match:
+            narrative = narr_match.group(1).strip()
+            # Clean up any trailing whitespace/newlines
+            narrative = " ".join(narrative.split())
+        
+        if len(narrative) > 10:
+            return narrative, risk_adjustment, None
+        return None, 0, f"TEXT_TOO_SHORT:{repr(text[:30])}"
     except Exception as e:
-        import traceback
-        return None, f"{type(e).__name__}:{str(e)[:200]}"
+        return None, 0, f"{type(e).__name__}:{str(e)[:200]}"
 
 
 app = FastAPI(
@@ -194,6 +217,8 @@ class AnalyzeResponse(BaseModel):
     data_hash: str = ""
     ai_powered: bool = False
     ai_narrative: str | None = None
+    ai_risk_adjustment: int = 0
+    base_score: int | None = None
 
 class RecordResponse(BaseModel):
     success: bool
@@ -355,30 +380,7 @@ def find_protocol(protocols, address):
     return None
 
 
-@app.get("/api/gemini-debug", tags=['Health'])
-def gemini_debug():
-    """Debug Gemini API connectivity."""
-    import traceback
-    try:
-        if not GEMINI_API_KEY:
-            return {"error": "GEMINI_API_KEY not set", "key_present": False}
-        payload = json.dumps({
-            "contents": [{"parts": [{"text": "Say: OK"}]}],
-            "generationConfig": {"maxOutputTokens": 20}
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            f"{_GEMINI_URL}?key={GEMINI_API_KEY}",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-        parts = result["candidates"][0]["content"]["parts"]
-        text = " ".join(p.get("text","") for p in parts if "text" in p).strip()
-        return {"ok": True, "text": text, "parts_count": len(parts), "model_url": _GEMINI_URL}
-    except Exception as e:
-        return {"error": str(e), "traceback": traceback.format_exc()[-500:], "model_url": _GEMINI_URL}
+# Debug endpoint removed — was exposing internal model URL and tracebacks
 
 @app.get("/health", tags=['Health'])
 def health():
@@ -474,6 +476,16 @@ def process_analysis(address: str):
             "data_source": "DeFiLlama API (api.llama.fi/protocols)",
             "fetched_at": int(time.time()),
         }
+        # Canonical hash inputs — MUST match /api/verify exactly
+        hash_inputs = {
+            "tvl": tvl,
+            "change_1d": change_1d,
+            "change_7d": change_7d,
+            "category": category,
+            "audits": str(audits),
+            "chains_count": len(chains),
+            "listed_at": listed_at,
+        }
         
         # Use the single scoring engine
         scores = compute_scores(
@@ -489,18 +501,34 @@ def process_analysis(address: str):
         audit = scores["audit"]
         
     else:
-        # Unknown protocol - penalize score significantly
+        # Unknown protocol — use scoring engine (no hardcoded overrides)
         scores = compute_scores(tvl=0, change_1d=None, change_7d=None, category="", audits="0", chains_count=0, listed_at=0)
-        liquidity = 15
-        collateral = 20
-        security = 10
-        volatility_score = 30
-        governance = 10
-        audit = 10
+        liquidity = scores["liquidity"]
+        collateral = scores["collateral"]
+        security = scores["security"]
+        volatility_score = scores["volatility_score"]
+        governance = scores["governance"]
+        audit = scores["audit"]
         raw_inputs = {
+            "tvl": 0,
+            "change_1d": None,
+            "change_7d": None,
+            "category": "",
+            "audits": "0",
+            "chains_count": 0,
+            "listed_at": 0,
             "data_source": "DeFiLlama API (api.llama.fi/protocols)",
             "fetched_at": int(time.time()),
             "match": "NOT_FOUND",
+        }
+        hash_inputs = {
+            "tvl": 0,
+            "change_1d": None,
+            "change_7d": None,
+            "category": "",
+            "audits": "0",
+            "chains_count": 0,
+            "listed_at": 0,
         }
 
     overall = round((liquidity + collateral + security + volatility_score + governance + audit) / 6)
@@ -517,19 +545,21 @@ def process_analysis(address: str):
     else:
         verdict = 'CRITICAL RISK — Not recommended for investment'
     
-    # Compute dataHash from RAW inputs (not from computed scores!)
-    # This is the KEY for verifiability — judges can reconstruct this hash
-    raw_data_string = json.dumps(raw_inputs, sort_keys=True, default=str)
-    data_hash = Web3.keccak(text=raw_data_string).hex()
+    # Compute dataHash from CANONICAL hash inputs (same 7 fields as /api/verify)
+    # This is the KEY for verifiability — anyone can reconstruct this hash
+    raw_data_string = json.dumps(hash_inputs, sort_keys=True, default=str)
+    data_hash = "0x" + Web3.keccak(text=raw_data_string).hex()
     
     response_time_ms = int((time.time() - start_time) * 1000)
     req_id = str(uuid.uuid4())[:8]
     logger.info(f"Analyze request for {address} processed in {response_time_ms}ms (ID: {req_id})")
 
-    # --- Gemini AI narrative (non-blocking: failure = None) ---
+    # --- Gemini AI risk analysis (non-blocking: failure = no adjustment) ---
     ai_narrative = None
+    ai_risk_adjustment = 0
+    base_score = overall  # preserve pre-AI score
     try:
-        ai_narrative, _ai_err = generate_risk_narrative(
+        ai_narrative, ai_risk_adjustment, _ai_err = generate_risk_narrative(
             protocol_name=str(protocol_name or "Unknown"),
             overall=int(overall),
             tvl=float(market_benchmark or 0),
@@ -542,8 +572,13 @@ def process_analysis(address: str):
         )
         if _ai_err:
             logger.warning(f"Gemini narrative issue: {_ai_err}")
+        # Apply AI risk adjustment to overall score
+        if ai_risk_adjustment != 0:
+            overall = max(0, min(100, overall + ai_risk_adjustment))
+            logger.info(f"AI risk adjustment: {ai_risk_adjustment:+d} (base={base_score} -> final={overall})")
     except Exception as ai_exc:
         ai_narrative = None
+        ai_risk_adjustment = 0
         logger.warning(f"Gemini narrative exception: {ai_exc}")
 
     response = {
@@ -565,6 +600,8 @@ def process_analysis(address: str):
         "raw_inputs": raw_inputs,
         "data_hash": data_hash,
         "ai_powered": bool(GEMINI_API_KEY),
+        "ai_risk_adjustment": ai_risk_adjustment,
+        "base_score": base_score if ai_risk_adjustment != 0 else None,
     }
     if ai_narrative:
         response["ai_narrative"] = ai_narrative
@@ -751,7 +788,7 @@ def api_verify(req: VerifyRequest):
         "listed_at": req.listed_at,
     }
     raw_data_string = json.dumps(raw_inputs_for_hash, sort_keys=True, default=str)
-    data_hash = Web3.keccak(text=raw_data_string).hex()
+    data_hash = "0x" + Web3.keccak(text=raw_data_string).hex()
     
     return {
         "verified_scores": {
