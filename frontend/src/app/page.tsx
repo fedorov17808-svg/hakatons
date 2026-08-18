@@ -87,6 +87,34 @@ export default function Home() {
   const [isCopied, setIsCopied] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking'|'online'|'offline'>('checking');
   const [onchainStats, setOnchainStats] = useState<{total_reports_onchain: number; verified_cross_chain_proofs: number; block_number: number} | null>(null);
+  const [attestcoinTxHash, setAttestcoinTxHash] = useState("");
+  const [attestcoinLoading, setAttestcoinLoading] = useState(false);
+  const [attestcoinResult, setAttestcoinResult] = useState<{verified: boolean; query_id: string; block_number: number; proof_stats: {merkle_siblings: number; continuity_roots: number; tx_bytes_size: number}} | null>(null);
+  const [attestcoinError, setAttestcoinError] = useState("");
+
+  const verifyAttestation = async () => {
+    if (!attestcoinTxHash || attestcoinTxHash.length !== 66) {
+      setAttestcoinError("Please enter a valid 66-char transaction hash (0x...)");
+      return;
+    }
+    setAttestcoinLoading(true);
+    setAttestcoinResult(null);
+    setAttestcoinError("");
+    try {
+      const res = await fetch(`${API_URL}/api/attestcoin/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tx_hash: attestcoinTxHash }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Verification failed");
+      setAttestcoinResult(data);
+    } catch (e: any) {
+      setAttestcoinError(e.message || "Verification failed");
+    } finally {
+      setAttestcoinLoading(false);
+    }
+  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -853,6 +881,110 @@ export default function Home() {
           </div>
         )}
       </div>
+
+        {/* ATTESTCOIN CROSS-CHAIN VERIFIER SECTION */}
+        <section className="max-w-4xl mx-auto mt-20 print:hidden">
+          <div className="bg-gradient-to-br from-slate-900/90 via-indigo-950/40 to-slate-900/90 border border-indigo-500/20 rounded-[2rem] p-8 md:p-12 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+            {/* Glow accent */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[60%] h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-60"></div>
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl"></div>
+
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl flex items-center justify-center text-3xl flex-shrink-0">🔮</div>
+              <div>
+                <h3 className="text-2xl font-bold text-white tracking-tight">Attestcoin Cross-Chain Verifier</h3>
+                <p className="text-indigo-300/80 text-sm mt-1">Verify any Sepolia transaction using Creditcoin&apos;s native oracle precompile <code className="bg-indigo-500/10 px-1.5 py-0.5 rounded text-indigo-300 text-xs">0x0FD2</code></p>
+              </div>
+            </div>
+
+            {/* How it works */}
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              {[
+                { step: "1", icon: "🔗", label: "Submit Sepolia TX hash" },
+                { step: "2", icon: "⚡", label: "Proof Builder generates Merkle proof" },
+                { step: "3", icon: "✅", label: "Precompile verifies trustlessly" },
+              ].map(({ step, icon, label }) => (
+                <div key={step} className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 text-center">
+                  <div className="text-2xl mb-2">{icon}</div>
+                  <div className="text-xs text-indigo-400 font-bold mb-1">Step {step}</div>
+                  <div className="text-xs text-slate-400 leading-relaxed">{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input */}
+            <div className="flex gap-3 mb-4">
+              <input
+                id="attestcoin-tx-input"
+                type="text"
+                placeholder="0xbc1aefc42f7bc5897e7693e815831729dc401877..."
+                value={attestcoinTxHash}
+                onChange={(e) => { setAttestcoinTxHash(e.target.value); setAttestcoinError(""); }}
+                className="flex-1 bg-slate-800/60 border border-slate-600/60 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition font-mono"
+              />
+              <button
+                id="btn-attestcoin-verify"
+                onClick={verifyAttestation}
+                disabled={attestcoinLoading}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all active:scale-95 whitespace-nowrap shadow-lg shadow-indigo-500/20 text-sm"
+              >
+                {attestcoinLoading ? (
+                  <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>Verifying...</span>
+                ) : "Verify Proof"}
+              </button>
+            </div>
+
+            {/* Quick-fill example */}
+            <button
+              onClick={() => setAttestcoinTxHash("0xbc1aefc42f7bc5897e7693e815831729dc401877df182b137ab3bf06edeaf0e1")}
+              className="text-xs text-indigo-400/70 hover:text-indigo-300 transition mb-6 underline underline-offset-2"
+            >
+              Use example Sepolia TX (verified on-chain ✅)
+            </button>
+
+            {/* Error */}
+            {attestcoinError && (
+              <div className="bg-rose-950/30 border border-rose-500/30 rounded-xl p-4 mb-4 text-rose-300 text-sm">
+                ⚠️ {attestcoinError}
+              </div>
+            )}
+
+            {/* Result */}
+            {attestcoinResult && (
+              <div className="bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-xl">✅</div>
+                  <div>
+                    <div className="text-emerald-400 font-bold text-lg">Proof Verified!</div>
+                    <div className="text-slate-400 text-xs">Sepolia → Creditcoin · Block #{attestcoinResult.block_number.toLocaleString()}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-slate-800/60 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.merkle_siblings}</div>
+                    <div className="text-xs text-slate-400 mt-1">Merkle Siblings</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.continuity_roots}</div>
+                    <div className="text-xs text-slate-400 mt-1">Continuity Roots</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-white">{(attestcoinResult.proof_stats.tx_bytes_size / 1024).toFixed(1)}KB</div>
+                    <div className="text-xs text-slate-400 mt-1">TX Data</div>
+                  </div>
+                  <div className="bg-slate-800/60 rounded-xl p-3 text-center">
+                    <div className="text-2xl font-bold text-indigo-400">0x0FD2</div>
+                    <div className="text-xs text-slate-400 mt-1">Precompile</div>
+                  </div>
+                </div>
+                <div className="bg-slate-900/60 rounded-xl p-3">
+                  <div className="text-xs text-slate-500 mb-1">Query ID</div>
+                  <code className="text-emerald-400 text-xs break-all">{attestcoinResult.query_id}</code>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
       <footer className='max-w-4xl mx-auto mt-24 pt-8 border-t border-slate-800 text-center print:hidden pb-8'>
         <div className="flex flex-col items-center justify-center gap-4">
