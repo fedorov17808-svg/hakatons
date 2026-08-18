@@ -247,7 +247,9 @@ class AnalyzeResponse(BaseModel):
     ai_powered: bool = False
     ai_narrative: str | None = None
     ai_risk_adjustment: int = 0
+    ai_risks: list = []
     base_score: int | None = None
+    attestation: dict = {}
 
 class RecordResponse(BaseModel):
     success: bool
