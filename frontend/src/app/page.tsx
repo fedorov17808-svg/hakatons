@@ -37,6 +37,7 @@ interface RiskResult {
   };
   data_hash?: string;
   ai_narrative?: string;
+  ai_risks?: string[];
   ai_powered?: boolean;
   ai_risk_adjustment?: number;
   base_score?: number;
@@ -708,6 +709,21 @@ export default function Home() {
                   )}
                 </div>
                 <p className="text-sm text-slate-200 leading-relaxed italic print:text-black">&ldquo;{result.ai_narrative}&rdquo;</p>
+                {result.ai_risks && result.ai_risks.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-violet-800/30 space-y-1.5">
+                    <span className="text-xs text-violet-400/70 font-semibold uppercase tracking-wider">Identified Risks</span>
+                    {result.ai_risks.map((risk, i) => {
+                      const severity = risk.match(/(HIGH|MED|LOW)/i)?.[1]?.toUpperCase() || 'MED';
+                      const sevColor = severity === 'HIGH' ? 'bg-rose-900/50 text-rose-300 border-rose-700/40' : severity === 'LOW' ? 'bg-emerald-900/50 text-emerald-300 border-emerald-700/40' : 'bg-amber-900/50 text-amber-300 border-amber-700/40';
+                      return (
+                        <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${sevColor} flex-shrink-0 mt-0.5`}>{severity}</span>
+                          <span>{risk.replace(/(HIGH|MED|LOW)/gi, '').replace(/[:\-•]\s*$/, '').trim()}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 

@@ -60,27 +60,51 @@ def generate_risk_narrative(
     try:
         tvl_b = tvl / 1e9 if tvl > 1e9 else tvl / 1e6
         tvl_unit = "B" if tvl > 1e9 else "M"
+        audited_str = 'Yes' if audits not in ['0', '2', '', None] else 'No'
+        
+        # Known high-risk events per protocol (knowledge cut-off awareness)
+        known_risks = {
+            "aave": "Governance token concentration in whales; V2 has frozen collateral types; DAO passed controversial fee switch.",
+            "compound": "Had $80M governance exploit (2021); COMP distribution imbalance; V3 migration slowed adoption.",
+            "lido": "Controls ~32% of all staked ETH (systemic centralization risk); slashing socialized across all stakers; regulatory scrutiny.",
+            "uniswap": "Fee switch not activated; governance capture risk; L2 fragmented liquidity; MEV extraction hurts LPs.",
+            "curve": "Founder Egorov took large personal loans collateralized by CRV (2023 near-liquidation crisis); code complexity.",
+            "makerdao": "Dai peg historically stable but RWA collateral (US Treasuries) adds TradFi counterparty risk; governance plutocracy.",
+            "convex": "Heavily dependent on Curve; vote-locking mechanics create illiquidity; 'Curve Wars' dynamics can amplify volatility.",
+            "balancer": "Complex boosted pools had $10M reentrancy exploit (2023); lower TVL than competitors reduces resilience.",
+        }
+        protocol_key = protocol_name.lower().split()[0] if protocol_name else ""
+        known_context = known_risks.get(protocol_key, "")
+        
         prompt = (
-            f"You are a DeFi risk analyst. Analyze this protocol and respond in EXACTLY this format:\n"
-            f"ADJUSTMENT: <integer from -10 to +10>\n"
-            f"NARRATIVE: <2 concise sentences, max 60 words>\n\n"
-            f"The ADJUSTMENT reflects risk factors NOT captured by the base formula:\n"
-            f"  Positive (+1 to +10): strong community, battle-tested code, institutional backing\n"
-            f"  Negative (-10 to -1): recent exploits, centralization risks, regulatory concerns\n"
-            f"  Zero (0): no additional factors identified\n\n"
+            f"You are a senior DeFi credit risk analyst at an institutional fund. "
+            f"Your job is to identify risks NOT captured by a mechanical formula (TVL, price changes, chain count, audits).\n\n"
+            f"Respond in EXACTLY this format:\n"
+            f"ADJUSTMENT: <integer from -15 to +10>\n"
+            f"RISKS: <bullet list of 2-3 specific, named risks with severity: LOW/MED/HIGH>\n"
+            f"NARRATIVE: <2 sentences, institutional tone, max 70 words>\n\n"
+            f"ADJUSTMENT scale:\n"
+            f"  +5 to +10: Exceptional track record, strong institutional backing, battle-tested 3+ years, no major exploits\n"
+            f"  +1 to +4: Minor positive factors (active governance, diversified collateral, growing ecosystem)\n"
+            f"  0: No significant additional factors\n"
+            f"  -1 to -5: Notable concerns (centralization, governance issues, recent incidents)\n"
+            f"  -6 to -15: Severe red flags (recent exploit, whale concentration, regulatory action, TVL flight)\n\n"
             f"Protocol: {protocol_name}\n"
             f"Category: {category}\n"
-            f"TVL: ${tvl_b:.1f}{tvl_unit}\n"
-            f"24h change: {change_1d:+.2f}%\n"
-            f"7d change: {change_7d:+.2f}%\n"
-            f"Chains: {chains_count}\n"
-            f"Audited: {'Yes' if audits not in ['0', '2', '', None] else 'No'}\n"
-            f"Base risk score: {overall}/100 ({verdict})\n"
-            f"Respond ONLY in the format above. Start with ADJUSTMENT:"
+            f"TVL: ${tvl_b:.2f}{tvl_unit}\n"
+            f"24h TVL change: {change_1d:+.2f}%\n"
+            f"7d TVL change: {change_7d:+.2f}%\n"
+            f"Multi-chain: {chains_count} chains\n"
+            f"Formal audits on record: {audited_str}\n"
+            f"Base mechanical score: {overall}/100 ({verdict})\n"
         )
+        if known_context:
+            prompt += f"Known protocol-specific context: {known_context}\n"
+        prompt += f"Respond ONLY in the format above. Start with ADJUSTMENT:"
+        
         payload = json.dumps({
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 300, "temperature": 0.3},
+            "generationConfig": {"maxOutputTokens": 400, "temperature": 0.2},
         }).encode("utf-8")
         req = urllib.request.Request(
             f"{_GEMINI_URL}?key={GEMINI_API_KEY}",
@@ -93,25 +117,30 @@ def generate_risk_narrative(
         parts = result["candidates"][0]["content"]["parts"]
         text = " ".join(p["text"] for p in parts if "text" in p).strip()
         
-        # Parse ADJUSTMENT and NARRATIVE from structured response
+        # Parse ADJUSTMENT
         risk_adjustment = 0
-        narrative = text  # fallback: use entire response as narrative
-        
         adj_match = re.search(r"ADJUSTMENT:\s*([+-]?\d+)", text)
         if adj_match:
-            risk_adjustment = max(-10, min(10, int(adj_match.group(1))))
+            risk_adjustment = max(-15, min(10, int(adj_match.group(1))))
         
+        # Parse RISKS (bullet list)
+        risks_list = []
+        risks_match = re.search(r"RISKS:\s*(.+?)(?=NARRATIVE:|$)", text, re.DOTALL)
+        if risks_match:
+            risks_text = risks_match.group(1).strip()
+            risks_list = [r.strip().lstrip('•-* ') for r in risks_text.split('\n') if r.strip() and r.strip() not in ['-', '•', '*']]
+        
+        # Parse NARRATIVE
+        narrative = text
         narr_match = re.search(r"NARRATIVE:\s*(.+)", text, re.DOTALL)
         if narr_match:
-            narrative = narr_match.group(1).strip()
-            # Clean up any trailing whitespace/newlines
-            narrative = " ".join(narrative.split())
+            narrative = " ".join(narr_match.group(1).strip().split())
         
         if len(narrative) > 10:
-            return narrative, risk_adjustment, None
-        return None, 0, f"TEXT_TOO_SHORT:{repr(text[:30])}"
+            return narrative, risk_adjustment, None, risks_list
+        return None, 0, f"TEXT_TOO_SHORT:{repr(text[:30])}", []
     except Exception as e:
-        return None, 0, f"{type(e).__name__}:{str(e)[:200]}"
+        return None, 0, f"{type(e).__name__}:{str(e)[:200]}", []
 
 
 app = FastAPI(
@@ -559,7 +588,7 @@ def process_analysis(address: str):
     ai_risk_adjustment = 0
     base_score = overall  # preserve pre-AI score
     try:
-        ai_narrative, ai_risk_adjustment, _ai_err = generate_risk_narrative(
+        ai_narrative, ai_risk_adjustment, _ai_err, ai_risks = generate_risk_narrative(
             protocol_name=str(protocol_name or "Unknown"),
             overall=int(overall),
             tvl=float(market_benchmark or 0),
@@ -579,6 +608,7 @@ def process_analysis(address: str):
     except Exception as ai_exc:
         ai_narrative = None
         ai_risk_adjustment = 0
+        ai_risks = []
         logger.warning(f"Gemini narrative exception: {ai_exc}")
 
     response = {
@@ -601,7 +631,16 @@ def process_analysis(address: str):
         "data_hash": data_hash,
         "ai_powered": bool(GEMINI_API_KEY),
         "ai_risk_adjustment": ai_risk_adjustment,
+        "ai_risks": ai_risks if ai_risks else [],
         "base_score": base_score if ai_risk_adjustment != 0 else None,
+        # Cross-chain attestation info
+        "attestation": {
+            "source_chain": "Sepolia (Chain Key: 1)",
+            "proof_builder": "https://prover.cc3-testnet.creditcoin.network",
+            "precompile": "0x0000000000000000000000000000000000000FD2",
+            "data_source_url": "https://api.llama.fi/protocols",
+            "note": "Record on-chain to anchor this score with a verifiable cross-chain proof",
+        },
     }
     if ai_narrative:
         response["ai_narrative"] = ai_narrative
