@@ -863,27 +863,34 @@ export default function Home() {
             <p className="text-slate-300 text-base md:text-lg mb-12 max-w-2xl mx-auto leading-relaxed">
               Our autonomous agent analyzes smart contracts in real-time, pulling live data to compute a comprehensive risk profile before you invest.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="flex flex-col items-center group">
                 <div className="w-20 h-20 bg-blue-500/10 rounded-3xl flex items-center justify-center text-blue-400 text-4xl mb-6 border border-blue-500/20 transition-all group-hover:scale-110 group-hover:bg-blue-500/20 group-hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]">
                   🔍
                 </div>
                 <h4 className="text-slate-100 font-bold text-lg mb-3">1. Analyze</h4>
-                <p className="text-slate-400 text-sm leading-relaxed">Gathers real-time TVL, liquidity data, and on-chain security metrics.</p>
+                <p className="text-slate-400 text-sm leading-relaxed">Pulls real-time TVL, liquidity, and volatility data from DeFiLlama oracles.</p>
               </div>
               <div className="flex flex-col items-center group">
                 <div className="w-20 h-20 bg-purple-500/10 rounded-3xl flex items-center justify-center text-purple-400 text-4xl mb-6 border border-purple-500/20 transition-all group-hover:scale-110 group-hover:bg-purple-500/20 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]">
-                  🧮
+                  🧠
                 </div>
-                <h4 className="text-slate-100 font-bold text-lg mb-3">2. Score</h4>
-                <p className="text-slate-400 text-sm leading-relaxed">Our AI engine evaluates multiple risk factors to generate a 0-100 credit score.</p>
+                <h4 className="text-slate-100 font-bold text-lg mb-3">2. AI Risk</h4>
+                <p className="text-slate-400 text-sm leading-relaxed">Gemini AI identifies protocol-specific risks: governance, exploits, centralization.</p>
               </div>
               <div className="flex flex-col items-center group">
                 <div className="w-20 h-20 bg-emerald-500/10 rounded-3xl flex items-center justify-center text-emerald-400 text-4xl mb-6 border border-emerald-500/20 transition-all group-hover:scale-110 group-hover:bg-emerald-500/20 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                   🔗
                 </div>
                 <h4 className="text-slate-100 font-bold text-lg mb-3">3. Record</h4>
-                <p className="text-slate-400 text-sm leading-relaxed">Anchors an immutable proof of the risk assessment on-chain.</p>
+                <p className="text-slate-400 text-sm leading-relaxed">Anchors an immutable, hash-verified risk report on the Creditcoin blockchain.</p>
+              </div>
+              <div className="flex flex-col items-center group">
+                <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center text-indigo-400 text-4xl mb-6 border border-indigo-500/20 transition-all group-hover:scale-110 group-hover:bg-indigo-500/20 group-hover:shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+                  🔮
+                </div>
+                <h4 className="text-slate-100 font-bold text-lg mb-3">4. Verify</h4>
+                <p className="text-slate-400 text-sm leading-relaxed">Cross-chain Merkle proofs verified trustlessly via Creditcoin&apos;s native precompile.</p>
               </div>
             </div>
             <div className="mt-14 pt-10 border-t border-white/5">

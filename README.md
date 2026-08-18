@@ -20,16 +20,16 @@
 
 ## ✨ Features
 
-- ✅ **Attestcoin Protocol Integration** — Cross-chain data verification via `0x0FD2` precompile
+- ✅ **Attestcoin Protocol Integration** — Cross-chain data verification via native precompile `0x0FD2` ([verified TX on Blockscout](https://creditcoin-testnet.blockscout.com/tx/0x7986752dcf8d62a59cfc1c3bdf07df3aadb46095167282fa8818370b844d2fb8))
+- ✅ **AI-Powered Risk Analysis** — Gemini identifies protocol-specific risks (governance exploits, centralization, regulatory) with severity ratings (HIGH/MED/LOW)
 - ✅ Real-time protocol analysis via DeFiLlama oracles
 - ✅ **7-dimensional** risk scoring engine (Overall, Liquidity, Collateral, Audit, Security, Volatility, Governance)
-- ✅ **Verifiable data provenance** — `dataHash` stored on-chain for trustless verification
-- ✅ **Append-only report history** — reports are NEVER overwritten
-- ✅ On-chain risk report anchoring on Creditcoin Testnet
+- ✅ **Verifiable data provenance** — `keccak256(canonical_inputs)` stored on-chain; independently reproducible via `/api/verify`
+- ✅ **8+ real on-chain reports** on Creditcoin Testnet CC3
+- ✅ **Known-risk database** for top DeFi protocols (Aave, Compound, Lido, Uniswap, Curve, MakerDAO, Convex, Balancer)
 - ✅ MetaMask wallet integration with auto-network switch
-- ✅ Production-grade Docker deployment
-- ✅ API key authentication & rate limiting
-- ✅ Comprehensive NatSpec-documented smart contract
+- ✅ API rate limiting & input validation
+- ✅ Interactive cross-chain verifier UI with Merkle proof visualization
 
 ---
 
@@ -136,10 +136,11 @@ curl -s https://backend-lilac-nine-97.vercel.app/api/methodology | jq
 
 ## 💻 Tech Stack
 
-- **Frontend:** Next.js 16 + React 19 + Recharts
-- **Backend:** FastAPI + DeFiLlama Oracle
+- **Frontend:** Next.js 16 + React 19 + Recharts + TailwindCSS
+- **Backend:** FastAPI + DeFiLlama Oracle + Gemini AI
 - **Blockchain:** Creditcoin Testnet (CC3) + Solidity 0.8.20
-- **Wallet:** MetaMask / WalletConnect / any EIP-1193 wallet
+- **Cross-Chain:** Attestcoin Proof Builder + Precompile `0x0FD2`
+- **Wallet:** MetaMask / any EIP-1193 wallet
 - **Deployment:** Vercel (Frontend + Backend)
 
 ---
@@ -154,9 +155,13 @@ graph LR
   B --> C[DeFiLlama API]
   C --> B
   B --> D[6-Factor Risk Score]
-  D --> E[Display Results]
+  D --> AI[Gemini AI<br>Risk Analysis]
+  AI --> E[Display Results<br>+ Risk Bullets]
   E --> F[Record On-Chain]
   F --> G[Creditcoin Testnet]
+  E --> H[Cross-Chain Verify]
+  H --> I[Proof Builder API]
+  I --> J[Precompile 0x0FD2]
 ```
 
 ```
@@ -423,31 +428,35 @@ npm run dev
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/analyze` | Computes 6-vector risk scores & AI verdict from live oracle data. |
+| `POST` | `/api/analyze` | Computes 7-vector risk scores, AI narrative + risk bullets from live oracle data. |
 | `POST` | `/api/record` | Signs and relays risk report proof transaction to Creditcoin Testnet. |
-| `GET` | `/api/tx-status/{tx_hash}` | Polls confirmation status and block number for a given transaction hash. |
-| `GET` | `/api/health` | Healthcheck endpoint for engine availability. |
+| `POST` | `/api/verify` | Independently reproduces score from raw inputs (verifiable provenance). |
+| `POST` | `/api/attestcoin/verify` | Cross-chain Merkle proof verification via precompile `0x0FD2`. |
+| `GET` | `/api/attestcoin/status` | Proof Builder health + attested block height. |
+| `GET` | `/api/stats/onchain` | Live on-chain stats (reportCount, verifiedProofs). |
+| `GET` | `/api/methodology` | Complete scoring formula documentation. |
+| `GET` | `/api/health` | Healthcheck endpoint. |
 | `GET` | `/docs` | Interactive OpenAPI / Swagger UI documentation. |
 
 ### 🛠️ API Examples
 
 ```bash
-# Health check
-curl GET http://localhost:8000/health
-
-# Analyze Aave V3 risk
-curl -X POST http://localhost:8000/api/analyze \
+# Analyze Aave V3 risk (with AI)
+curl -X POST https://backend-lilac-nine-97.vercel.app/api/analyze \
   -H "Content-Type: application/json" \
-  -d '{"address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"}'
+  -d '{"address": "0x7d2768de32b0b80b7a3454c06bdac94a69ddc7a9"}'
+# Returns: score, 7 dimensions, ai_narrative, ai_risks[], attestation{}
 
-# Record on-chain
-curl -X POST http://localhost:8000/api/record \
-  -H "X-API-Key: YOUR_API_KEY_HERE" \
+# Verify data independently
+curl -X POST https://backend-lilac-nine-97.vercel.app/api/verify \
   -H "Content-Type: application/json" \
-  -d '{"address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2", "score": 87}'
+  -d '{"tvl":14296070586.55,"change_1d":0.917,"change_7d":0.833,"category":"Lending","audits":"2","chains_count":21,"listed_at":1648776877}'
 
-# Check transaction status
-curl GET http://localhost:8000/api/tx-status/0xceab86256882240b2684c5e3f2b1c52bfac005f68235bf88c9780eadf8d63298
+# Cross-chain Attestcoin verification
+curl -X POST https://backend-lilac-nine-97.vercel.app/api/attestcoin/verify \
+  -H "Content-Type: application/json" \
+  -d '{"tx_hash": "0xbc1aefc42f7bc5897e7693e815831729dc401877df182b137ab3bf06edeaf0e1"}'
+# Returns: {verified: true, query_id: "0x...", proof_stats: {merkle_siblings: 8, continuity_roots: 108}}
 ```
 
 ---
