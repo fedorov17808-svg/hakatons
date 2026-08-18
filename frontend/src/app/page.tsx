@@ -38,6 +38,8 @@ interface RiskResult {
   data_hash?: string;
   ai_narrative?: string;
   ai_powered?: boolean;
+  ai_risk_adjustment?: number;
+  base_score?: number;
 }
 
 const getScoreColor = (score: number) => {
@@ -663,9 +665,19 @@ export default function Home() {
             {/* Gemini AI Narrative */}
             {result.ai_narrative && (
               <div className="bg-gradient-to-br from-violet-950/40 to-indigo-950/40 border border-violet-700/40 rounded-xl p-4 print:bg-gray-50 print:border-gray-300">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">✨ AI Risk Analysis</span>
                   <span className="text-xs px-2 py-0.5 bg-violet-900/50 text-violet-300 rounded-full border border-violet-700/40 font-mono">Powered by Gemini</span>
+                  {result.ai_risk_adjustment !== undefined && result.ai_risk_adjustment !== 0 && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
+                      result.ai_risk_adjustment > 0 
+                        ? 'bg-emerald-900/50 text-emerald-300 border border-emerald-700/40' 
+                        : 'bg-rose-900/50 text-rose-300 border border-rose-700/40'
+                    }`}>
+                      Score {result.ai_risk_adjustment > 0 ? '+' : ''}{result.ai_risk_adjustment}
+                      {result.base_score !== undefined && ` (${result.base_score} → ${result.score})`}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-slate-200 leading-relaxed italic print:text-black">&ldquo;{result.ai_narrative}&rdquo;</p>
               </div>
