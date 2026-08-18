@@ -889,3 +889,175 @@ def api_stats_onchain():
     except Exception as e:
         logger.error(f"On-chain stats failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to read on-chain stats: {str(e)}")
+
+
+# ---------- ATTESTCOIN CROSS-CHAIN VERIFICATION ----------
+
+PRECOMPILE_ADDRESS = "0x0000000000000000000000000000000000000FD2"
+PROOF_BUILDER_URL = "https://prover.cc3-testnet.creditcoin.network"
+SOURCE_CHAIN_KEY = 1  # Sepolia on CC3 Testnet
+
+PRECOMPILE_ABI = [
+    {
+        "type": "function",
+        "name": "verifyAndEmit",
+        "inputs": [
+            {"name": "chainKey", "type": "uint64"},
+            {"name": "headerNumbers", "type": "uint64[]"},
+            {"name": "encodedTransactions", "type": "bytes[]"},
+            {
+                "name": "merkleProofs",
+                "type": "tuple[]",
+                "components": [
+                    {"name": "root", "type": "bytes32"},
+                    {
+                        "name": "siblings",
+                        "type": "tuple[]",
+                        "components": [
+                            {"name": "hash", "type": "bytes32"},
+                            {"name": "isLeft", "type": "bool"}
+                        ]
+                    }
+                ]
+            },
+            {
+                "name": "continuityProof",
+                "type": "tuple",
+                "components": [
+                    {"name": "lowerEndpointDigest", "type": "bytes32"},
+                    {"name": "roots", "type": "bytes32[]"}
+                ]
+            }
+        ],
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "nonpayable"
+    }
+]
+
+
+@app.get("/api/attestcoin/status", tags=['Attestcoin'])
+def attestcoin_status():
+    """
+    Returns the status of the Attestcoin cross-chain verification infrastructure.
+    
+    Shows the current attested heights, proof builder health, and precompile availability.
+    """
+    import urllib.request as urlreq
+    
+    status = {
+        "precompile_address": PRECOMPILE_ADDRESS,
+        "proof_builder_url": PROOF_BUILDER_URL,
+        "source_chain_key": SOURCE_CHAIN_KEY,
+    }
+    
+    # Check proof builder health
+    try:
+        req = urlreq.Request(f"{PROOF_BUILDER_URL}/api/v1/health")
+        with urlreq.urlopen(req, timeout=5) as resp:
+            health = json.loads(resp.read())
+            status["proof_builder_health"] = health
+    except Exception as e:
+        status["proof_builder_health"] = {"error": str(e)}
+    
+    # Check attested height
+    try:
+        req = urlreq.Request(f"{PROOF_BUILDER_URL}/api/v1/attested-height/{SOURCE_CHAIN_KEY}")
+        with urlreq.urlopen(req, timeout=5) as resp:
+            height = json.loads(resp.read())
+            status["attested_height"] = height
+    except Exception as e:
+        status["attested_height"] = {"error": str(e)}
+    
+    return status
+
+
+class AttestcoinVerifyRequest(BaseModel):
+    tx_hash: str
+
+
+@app.post("/api/attestcoin/verify", tags=['Attestcoin'])
+def attestcoin_verify(req: AttestcoinVerifyRequest):
+    """
+    Verify a Sepolia transaction using the Creditcoin Oracle's native precompile (0x0FD2).
+    
+    1. Fetches Merkle + Continuity proofs from the Proof Builder API
+    2. Calls the precompile via eth_call to verify the proof
+    3. Returns the verification result (query_id if valid)
+    """
+    import urllib.request as urlreq
+    
+    tx_hash = req.tx_hash
+    if not tx_hash.startswith("0x") or len(tx_hash) != 66:
+        raise HTTPException(status_code=400, detail="Invalid transaction hash")
+    
+    # Step 1: Get proof from Proof Builder
+    try:
+        payload = json.dumps([tx_hash]).encode()
+        proof_req = urlreq.Request(
+            f"{PROOF_BUILDER_URL}/api/v1/proof-batch-by-tx/{SOURCE_CHAIN_KEY}",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        with urlreq.urlopen(proof_req, timeout=60) as resp:
+            proof_data = json.loads(resp.read())
+    except Exception as e:
+        error_msg = str(e)
+        if hasattr(e, 'read'):
+            error_body = e.read().decode()[:200]
+            error_msg = f"{error_msg}: {error_body}"
+        raise HTTPException(status_code=502, detail=f"Proof Builder error: {error_msg}")
+    
+    # Step 2: Parse proof data
+    try:
+        chain_key = proof_data['chainKey']
+        block_num = proof_data['fromHeader']
+        merkle_data = proof_data['merkleProofs'][str(block_num)]
+        tx_key = list(merkle_data.keys())[0]
+        tx_proof = merkle_data[tx_key]
+        
+        tx_bytes = bytes.fromhex(tx_proof['txBytes'][2:])
+        merkle_root = bytes.fromhex(tx_proof['merkleProof']['root'][2:])
+        siblings = [
+            (bytes.fromhex(s['hash'][2:]), s['isLeft'])
+            for s in tx_proof['merkleProof']['siblings']
+        ]
+        lower_endpoint = bytes.fromhex(proof_data['continuityProof']['lowerEndpointDigest'][2:])
+        continuity_roots = [bytes.fromhex(r[2:]) for r in proof_data['continuityProof']['roots']]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse proof: {str(e)}")
+    
+    # Step 3: Call precompile via eth_call
+    try:
+        w3 = Web3(Web3.HTTPProvider(CREDITCOIN_RPC))
+        precompile = w3.eth.contract(address=PRECOMPILE_ADDRESS, abi=PRECOMPILE_ABI)
+        
+        merkle_proof_tuple = (merkle_root, siblings)
+        continuity_proof_tuple = (lower_endpoint, continuity_roots)
+        
+        result = precompile.functions.verifyAndEmit(
+            chain_key,
+            [block_num],
+            [tx_bytes],
+            [merkle_proof_tuple],
+            continuity_proof_tuple
+        ).call()
+        
+        query_id = "0x" + result.hex()
+        
+        return {
+            "verified": True,
+            "query_id": query_id,
+            "tx_hash": tx_hash,
+            "source_chain_key": chain_key,
+            "block_number": block_num,
+            "precompile": PRECOMPILE_ADDRESS,
+            "proof_stats": {
+                "merkle_siblings": len(siblings),
+                "continuity_roots": len(continuity_roots),
+                "tx_bytes_size": len(tx_bytes),
+            },
+            "note": "Proof verified via Creditcoin native precompile (0x0FD2) — trustless cross-chain verification"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Precompile verification failed: {str(e)}")
