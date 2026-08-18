@@ -1029,7 +1029,7 @@ def attestcoin_verify(req: AttestcoinVerifyRequest):
     
     # Step 3: Call precompile via eth_call
     try:
-        w3 = Web3(Web3.HTTPProvider(CREDITCOIN_RPC))
+        w3 = Web3(Web3.HTTPProvider(RPC_URL))
         precompile = w3.eth.contract(address=PRECOMPILE_ADDRESS, abi=PRECOMPILE_ABI)
         
         merkle_proof_tuple = (merkle_root, siblings)
