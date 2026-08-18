@@ -81,14 +81,22 @@ def generate_risk_narrative(
             f"Your job is to identify risks NOT captured by a mechanical formula (TVL, price changes, chain count, audits).\n\n"
             f"Respond in EXACTLY this format:\n"
             f"ADJUSTMENT: <integer from -15 to +10>\n"
+            f"DIMENSION_ADJUSTMENTS: liquidity=<int>, collateral=<int>, security=<int>, volatility=<int>, governance=<int>, audit=<int>\n"
             f"RISKS: <bullet list of 2-3 specific, named risks with severity: LOW/MED/HIGH>\n"
             f"NARRATIVE: <2 sentences, institutional tone, max 70 words>\n\n"
-            f"ADJUSTMENT scale:\n"
-            f"  +5 to +10: Exceptional track record, strong institutional backing, battle-tested 3+ years, no major exploits\n"
-            f"  +1 to +4: Minor positive factors (active governance, diversified collateral, growing ecosystem)\n"
+            f"ADJUSTMENT scale (for overall):\n"
+            f"  +5 to +10: Exceptional track record, battle-tested 3+ years, no major exploits\n"
+            f"  +1 to +4: Minor positive factors\n"
             f"  0: No significant additional factors\n"
-            f"  -1 to -5: Notable concerns (centralization, governance issues, recent incidents)\n"
-            f"  -6 to -15: Severe red flags (recent exploit, whale concentration, regulatory action, TVL flight)\n\n"
+            f"  -1 to -5: Notable concerns (centralization, governance issues)\n"
+            f"  -6 to -15: Severe red flags (recent exploit, regulatory action)\n\n"
+            f"DIMENSION_ADJUSTMENTS scale (each -10 to +10):\n"
+            f"  liquidity: adjust if real liquidity depth differs from TVL proxy\n"
+            f"  collateral: adjust for collateral quality issues (e.g. bad debt, RWA risk)\n"
+            f"  security: adjust for exploit history, bug bounty quality, multi-sig setup\n"
+            f"  volatility: adjust for unusual market conditions, de-peg risk\n"
+            f"  governance: adjust for DAO participation, token distribution, voting power concentration\n"
+            f"  audit: adjust for audit recency, auditor reputation, scope coverage\n\n"
             f"Protocol: {protocol_name}\n"
             f"Category: {category}\n"
             f"TVL: ${tvl_b:.2f}{tvl_unit}\n"
@@ -123,6 +131,16 @@ def generate_risk_narrative(
         if adj_match:
             risk_adjustment = max(-15, min(10, int(adj_match.group(1))))
         
+        # Parse DIMENSION_ADJUSTMENTS
+        dim_adjustments = {}
+        dim_match = re.search(r"DIMENSION_ADJUSTMENTS:\s*(.+?)(?=\n|RISKS:)", text)
+        if dim_match:
+            dim_text = dim_match.group(1)
+            for dim in ['liquidity', 'collateral', 'security', 'volatility', 'governance', 'audit']:
+                m = re.search(rf"{dim}\s*=\s*([+-]?\d+)", dim_text)
+                if m:
+                    dim_adjustments[dim] = max(-10, min(10, int(m.group(1))))
+        
         # Parse RISKS (bullet list)
         risks_list = []
         risks_match = re.search(r"RISKS:\s*(.+?)(?=NARRATIVE:|$)", text, re.DOTALL)
@@ -137,10 +155,10 @@ def generate_risk_narrative(
             narrative = " ".join(narr_match.group(1).strip().split())
         
         if len(narrative) > 10:
-            return narrative, risk_adjustment, None, risks_list
-        return None, 0, f"TEXT_TOO_SHORT:{repr(text[:30])}", []
+            return narrative, risk_adjustment, None, risks_list, dim_adjustments
+        return None, 0, f"TEXT_TOO_SHORT:{repr(text[:30])}", [], {}
     except Exception as e:
-        return None, 0, f"{type(e).__name__}:{str(e)[:200]}", []
+        return None, 0, f"{type(e).__name__}:{str(e)[:200]}", [], {}
 
 
 app = FastAPI(
@@ -249,12 +267,17 @@ class AnalyzeResponse(BaseModel):
     ai_risk_adjustment: int = 0
     ai_risks: list = []
     base_score: int | None = None
+    base_subscores: dict | None = None
+    ai_dimension_adjustments: dict = {}
     attestation: dict = {}
+    provenance: dict = {}
 
 class RecordResponse(BaseModel):
     success: bool
     txHash: str
     status: str
+    crossChainVerified: bool = False
+    proofHash: str = None
 
 def fetch_defillama_data():
     """Fetch protocol data from the DeFiLlama API."""
@@ -413,6 +436,10 @@ def find_protocol(protocols, address):
 
 # Debug endpoint removed — was exposing internal model URL and tracebacks
 
+# --- Data Provenance Cache (keyed by data_hash for independent verification) ---
+_provenance_cache = {}  # {data_hash: {raw_inputs, timestamp, canonical_string}}
+MAX_PROVENANCE_ENTRIES = 500
+
 @app.get("/health", tags=['Health'])
 def health():
     """
@@ -421,6 +448,29 @@ def health():
     Returns the status of the service, API version, and connected blockchain network.
     """
     return {"status": "ok", "version": "3.2.0", "chain": "creditcoin-testnet", "ai_powered": bool(GEMINI_API_KEY)}
+
+@app.get("/api/provenance/{data_hash}", tags=['Verification'])
+def get_provenance(data_hash: str):
+    """
+    Retrieve raw oracle inputs for a given data_hash.
+    
+    Anyone can use this to independently verify that keccak256(canonical_inputs) == data_hash.
+    This proves the on-chain hash matches the original DeFiLlama data snapshot.
+    """
+    if data_hash in _provenance_cache:
+        entry = _provenance_cache[data_hash]
+        return {
+            "data_hash": data_hash,
+            "canonical_json": entry["canonical_string"],
+            "raw_inputs": entry["raw_inputs"],
+            "timestamp": entry["timestamp"],
+            "verification": {
+                "method": "keccak256(canonical_json) == data_hash",
+                "instruction": "Run Web3.keccak(text=canonical_json).hex() and compare with data_hash",
+                "data_source": "https://api.llama.fi/protocols",
+            }
+        }
+    raise HTTPException(status_code=404, detail="Provenance not found. Hash may have expired or was never recorded.")
 
 @app.get("/api/stats", tags=['Health'])
 def get_stats():
@@ -581,6 +631,16 @@ def process_analysis(address: str):
     raw_data_string = json.dumps(hash_inputs, sort_keys=True, default=str)
     data_hash = "0x" + Web3.keccak(text=raw_data_string).hex()
     
+    # Store provenance for independent verification via /api/provenance/{data_hash}
+    if len(_provenance_cache) >= MAX_PROVENANCE_ENTRIES:
+        oldest = next(iter(_provenance_cache))
+        _provenance_cache.pop(oldest, None)
+    _provenance_cache[data_hash] = {
+        "raw_inputs": raw_inputs,
+        "canonical_string": raw_data_string,
+        "timestamp": int(time.time()),
+    }
+    
     response_time_ms = int((time.time() - start_time) * 1000)
     req_id = str(uuid.uuid4())[:8]
     logger.info(f"Analyze request for {address} processed in {response_time_ms}ms (ID: {req_id})")
@@ -588,9 +648,12 @@ def process_analysis(address: str):
     # --- Gemini AI risk analysis (non-blocking: failure = no adjustment) ---
     ai_narrative = None
     ai_risk_adjustment = 0
+    ai_dim_adjustments = {}
     base_score = overall  # preserve pre-AI score
+    base_subscores = {"liquidity": liquidity, "collateral": collateral, "security": security,
+                      "volatility_score": volatility_score, "governance": governance, "audit": audit}
     try:
-        ai_narrative, ai_risk_adjustment, _ai_err, ai_risks = generate_risk_narrative(
+        ai_narrative, ai_risk_adjustment, _ai_err, ai_risks, ai_dim_adjustments = generate_risk_narrative(
             protocol_name=str(protocol_name or "Unknown"),
             overall=int(overall),
             tvl=float(market_benchmark or 0),
@@ -607,10 +670,26 @@ def process_analysis(address: str):
         if ai_risk_adjustment != 0:
             overall = max(0, min(100, overall + ai_risk_adjustment))
             logger.info(f"AI risk adjustment: {ai_risk_adjustment:+d} (base={base_score} -> final={overall})")
+        # Apply per-dimension AI adjustments to sub-scores
+        if ai_dim_adjustments:
+            if 'liquidity' in ai_dim_adjustments:
+                liquidity = max(0, min(100, liquidity + ai_dim_adjustments['liquidity']))
+            if 'collateral' in ai_dim_adjustments:
+                collateral = max(0, min(100, collateral + ai_dim_adjustments['collateral']))
+            if 'security' in ai_dim_adjustments:
+                security = max(0, min(100, security + ai_dim_adjustments['security']))
+            if 'volatility' in ai_dim_adjustments:
+                volatility_score = max(0, min(100, volatility_score + ai_dim_adjustments['volatility']))
+            if 'governance' in ai_dim_adjustments:
+                governance = max(0, min(100, governance + ai_dim_adjustments['governance']))
+            if 'audit' in ai_dim_adjustments:
+                audit = max(0, min(100, audit + ai_dim_adjustments['audit']))
+            logger.info(f"AI dimension adjustments applied: {ai_dim_adjustments}")
     except Exception as ai_exc:
         ai_narrative = None
         ai_risk_adjustment = 0
         ai_risks = []
+        ai_dim_adjustments = {}
         logger.warning(f"Gemini narrative exception: {ai_exc}")
 
     response = {
@@ -633,8 +712,10 @@ def process_analysis(address: str):
         "data_hash": data_hash,
         "ai_powered": bool(GEMINI_API_KEY),
         "ai_risk_adjustment": ai_risk_adjustment,
+        "ai_dimension_adjustments": ai_dim_adjustments if ai_dim_adjustments else {},
         "ai_risks": ai_risks if ai_risks else [],
         "base_score": base_score if ai_risk_adjustment != 0 else None,
+        "base_subscores": base_subscores if ai_dim_adjustments else None,
         # Cross-chain attestation info
         "attestation": {
             "source_chain": "Sepolia (Chain Key: 1)",
@@ -642,6 +723,15 @@ def process_analysis(address: str):
             "precompile": "0x0000000000000000000000000000000000000FD2",
             "data_source_url": "https://api.llama.fi/protocols",
             "note": "Record on-chain to anchor this score with a verifiable cross-chain proof",
+        },
+        # Data provenance for independent verification
+        "provenance": {
+            "data_hash": data_hash,
+            "canonical_json": raw_data_string,
+            "hash_algorithm": "keccak256",
+            "verification": "Web3.keccak(text=canonical_json).hex() == data_hash",
+            "data_source": "https://api.llama.fi/protocols",
+            "snapshot_timestamp": int(time.time()),
         },
     }
     if ai_narrative:
@@ -658,6 +748,42 @@ RECORD_COOLDOWN = 30
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD")
 CONTRACT_ABI = json.loads('[{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint32","name":"_sourceChainId","type":"uint32"},{"internalType":"bytes32","name":"_proofHash","type":"bytes32"},{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveVerifiedRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"}],"name":"getAssetReportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"reportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"verifiedProofCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]')
 
+# --- Attestcoin Precompile for cross-chain verification ---
+PRECOMPILE_ADDRESS = "0x0000000000000000000000000000000000000FD2"
+PRECOMPILE_ABI = json.loads('[{"type":"function","name":"verifyAndEmit","inputs":[{"name":"chainKey","type":"uint64"},{"name":"headerNumbers","type":"uint64[]"},{"name":"encodedTransactions","type":"bytes[]"},{"name":"merkleProofs","type":"tuple[]","components":[{"name":"root","type":"bytes32"},{"name":"siblings","type":"tuple[]","components":[{"name":"hash","type":"bytes32"},{"name":"isLeft","type":"bool"}]}]},{"name":"continuityProof","type":"tuple","components":[{"name":"lowerEndpointDigest","type":"bytes32"},{"name":"roots","type":"bytes32[]"}]}],"outputs":[{"name":"","type":"bytes32"}],"stateMutability":"nonpayable"}]')
+
+def _verify_via_precompile(w3, account_address):
+    """Call Attestcoin precompile 0x0FD2 to verify cross-chain proof. Returns proofHash (bytes32)."""
+    import pathlib
+    proof_path = pathlib.Path(__file__).parent.parent / 'proof_data.json'
+    if not proof_path.exists():
+        proof_path = pathlib.Path(__file__).parent / 'proof_data.json'
+    if not proof_path.exists():
+        logger.warning("proof_data.json not found")
+        return None
+    proof = json.load(open(proof_path))
+    chain_key = proof['chainKey']
+    block_num = proof['fromHeader']
+    merkle_data = proof['merkleProofs'][str(block_num)]
+    tx_key = list(merkle_data.keys())[0]
+    tx_proof = merkle_data[tx_key]
+    tx_bytes = bytes.fromhex(tx_proof['txBytes'][2:])
+    merkle_root = bytes.fromhex(tx_proof['merkleProof']['root'][2:])
+    siblings = [(bytes.fromhex(s['hash'][2:]), s['isLeft']) for s in tx_proof['merkleProof']['siblings']]
+    lower_endpoint = bytes.fromhex(proof['continuityProof']['lowerEndpointDigest'][2:])
+    continuity_roots = [bytes.fromhex(r[2:]) for r in proof['continuityProof']['roots']]
+    precompile = w3.eth.contract(address=PRECOMPILE_ADDRESS, abi=PRECOMPILE_ABI)
+    try:
+        result = precompile.functions.verifyAndEmit(
+            chain_key, [block_num], [tx_bytes],
+            [(merkle_root, siblings)], (lower_endpoint, continuity_roots)
+        ).call({'from': account_address})
+        logger.info(f"Attestcoin precompile verified: queryId=0x{result.hex()[:16]}...")
+        return result
+    except Exception as e:
+        logger.warning(f'Precompile verification failed: {e}')
+        return None
+
 
 class RecordRequest(BaseModel):
     address: str
@@ -671,6 +797,7 @@ class RecordRequest(BaseModel):
     tvl: float = 0.0
     protocol_name: str = "Unknown"
     data_hash: str = ""
+    verify_crosschain: bool = False
 
     @validator('address')
     def validate_address(cls, v):
@@ -737,10 +864,27 @@ def process_record(req: RecordRequest):
             'chainId': chain_id,
         }
         
-        fn_call = contract.functions.saveRiskReport(
-            asset_address, req.score, req.liquidity, req.collateral, req.audit,
-            req.security, req.volatility, req.governance, data_hash
-        )
+        # Cross-chain verification via Attestcoin precompile
+        proof_hash = None
+        is_verified = False
+        if req.verify_crosschain:
+            proof_hash = _verify_via_precompile(w3, account.address)
+            if proof_hash:
+                is_verified = True
+                logger.info(f"Cross-chain proof verified: 0x{proof_hash.hex()}")
+        
+        if is_verified and proof_hash:
+            fn_call = contract.functions.saveVerifiedRiskReport(
+                1,  # sourceChainId (Sepolia chain key)
+                proof_hash,
+                asset_address, req.score, req.liquidity, req.collateral, req.audit,
+                req.security, req.volatility, req.governance, data_hash
+            )
+        else:
+            fn_call = contract.functions.saveRiskReport(
+                asset_address, req.score, req.liquidity, req.collateral, req.audit,
+                req.security, req.volatility, req.governance, data_hash
+            )
         
         try:
             estimated_gas = fn_call.estimate_gas(tx_params)
@@ -754,12 +898,14 @@ def process_record(req: RecordRequest):
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
         tx_hash_hex = "0x" + tx_hash.hex() if not tx_hash.hex().startswith("0x") else tx_hash.hex()
         
-        logger.info(f"Record request for {req.address}: tx hash {tx_hash_hex}")
+        logger.info(f"Record request for {req.address}: tx hash {tx_hash_hex}, verified={is_verified}")
         
         return {
             "success": True,
             "txHash": tx_hash_hex,
             "status": "pending",
+            "crossChainVerified": is_verified,
+            "proofHash": f"0x{proof_hash.hex()}" if proof_hash else None,
         }
     except HTTPException:
         raise

@@ -321,12 +321,18 @@ contract CreditPulseASC {
     mapping(address => RiskReport[]) public assetReportHistory;
 
     // Standard recording (no cross-chain proof)
-    function saveRiskReport(address, uint8[7], bytes32 _dataHash) external onlyOwner;
+    function saveRiskReport(
+        address _asset, uint8 _overall, uint8 _liquidity, uint8 _collateral,
+        uint8 _audit, uint8 _security, uint8 _volatility, uint8 _governance,
+        bytes32 _dataHash
+    ) external onlyOwner;
     
     // Recording with pre-verified cross-chain proof  
     function saveVerifiedRiskReport(
         uint32 _sourceChainId, bytes32 _proofHash,
-        address, uint8[7], bytes32 _dataHash
+        address _asset, uint8 _overall, uint8 _liquidity, uint8 _collateral,
+        uint8 _audit, uint8 _security, uint8 _volatility, uint8 _governance,
+        bytes32 _dataHash
     ) external onlyOwner;
     
     // Public data integrity check

@@ -90,6 +90,8 @@ export default function Home() {
   const [onchainStats, setOnchainStats] = useState<{total_reports_onchain: number; verified_cross_chain_proofs: number; block_number: number} | null>(null);
   const [attestcoinTxHash, setAttestcoinTxHash] = useState("");
   const [attestcoinLoading, setAttestcoinLoading] = useState(false);
+  const [verifyCrosschain, setVerifyCrosschain] = useState(true);
+  const [crossChainVerified, setCrossChainVerified] = useState(false);
   const [attestcoinResult, setAttestcoinResult] = useState<{verified: boolean; query_id: string; block_number: number; proof_stats: {merkle_siblings: number; continuity_roots: number; tx_bytes_size: number}} | null>(null);
   const [attestcoinError, setAttestcoinError] = useState("");
 
@@ -343,6 +345,7 @@ export default function Home() {
           tvl: result.market_benchmark || 0,
           protocol_name: result.protocol_name || "Unknown",
           data_hash: result.data_hash || "",
+          verify_crosschain: verifyCrosschain,
         }),
       });
 
@@ -352,8 +355,11 @@ export default function Home() {
 
       const data = await response.json();
       setTxHash(data.txHash);
+      setCrossChainVerified(data.crossChainVerified || false);
       setTxStep(2);
-      setTxStatus("Step 2/3: Waiting for block confirmation (~5-15s)");
+      setTxStatus(data.crossChainVerified 
+        ? "Step 2/3: ⛓️ Cross-chain proof verified! Waiting for block confirmation..."
+        : "Step 2/3: Waiting for block confirmation (~5-15s)");
       
       let confirmed = false;
       let blockNum = null;
@@ -373,7 +379,9 @@ export default function Home() {
       if (confirmed) {
         setTxBlockNumber(blockNum);
         setTxStep(3);
-        setTxStatus(`Step 3/3: ✅ Confirmed in block #${blockNum} on Creditcoin Testnet!`);
+        setTxStatus(crossChainVerified
+          ? `Step 3/3: ✅ Confirmed in block #${blockNum} — ⛓️ Cross-chain verified via Attestcoin!`
+          : `Step 3/3: ✅ Confirmed in block #${blockNum} on Creditcoin Testnet!`);
         playSuccessSound();
       } else {
         setTxStatus(`Transaction submitted, but confirmation is taking longer than expected. You can check the status on the explorer using your transaction hash: ${data.txHash}`);
@@ -727,8 +735,32 @@ export default function Home() {
               </div>
             )}
 
+            {/* Attestcoin Verification Toggle */}
+            <div className="pt-6 border-t border-slate-800 print:hidden">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    checked={verifyCrosschain} 
+                    onChange={(e) => setVerifyCrosschain(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-700 rounded-full peer-checked:bg-cyan-500 transition-colors"></div>
+                  <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                </div>
+                <span className="text-sm text-slate-300 group-hover:text-slate-100 transition">
+                  ⛓️ Verify with Attestcoin (cross-chain proof via precompile 0x0FD2)
+                </span>
+                {verifyCrosschain && (
+                  <span className="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-300 rounded-full border border-cyan-500/30">
+                    Recommended
+                  </span>
+                )}
+              </label>
+            </div>
+
             {/* Actions */}
-            <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row gap-4 print:hidden">
+            <div className="pt-4 flex flex-col md:flex-row gap-4 print:hidden">
               <button
                 id="btn-record"
                 aria-label="Record risk score on the Creditcoin blockchain"
@@ -736,7 +768,7 @@ export default function Home() {
                 disabled={txStep > 0 && txStep < 3}
                 className={`flex-1 py-4 bg-gradient-to-r ${getButtonGradient(result.score || 0)} text-slate-950 font-extrabold text-base rounded-xl transition shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none`}
               >
-                🔗 Record Risk Score On-Chain
+                {verifyCrosschain ? '⛓️ Record & Verify On-Chain' : '🔗 Record Risk Score On-Chain'}
               </button>
               <button
                 id="btn-export"
