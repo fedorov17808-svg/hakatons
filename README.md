@@ -82,7 +82,7 @@ Try these real DeFi protocol addresses to test the platform:
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract (ASC)** | [`0x7eda50D76067D0e9E78822D5581AA31D084c5C2f`](https://creditcoin-testnet.blockscout.com/address/0x7eda50D76067D0e9E78822D5581AA31D084c5C2f#code) (v3.1-hardened) |
+| **Smart Contract (ASC)** | [`0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD`](https://creditcoin-testnet.blockscout.com/address/0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD#code) (v3.2) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
 | **Interactive API Docs** | [**Swagger UI (Production)**](https://backend-lilac-nine-97.vercel.app/docs) |
@@ -289,111 +289,48 @@ $$\text{Overall Score} = \mathrm{round}\left(\frac{S_{\text{liq}} + S_{\text{col
 
 ## 📜 Smart Contract Specification
 
-The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) is deployed on Creditcoin Testnet:
+The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) v3.2 is deployed on Creditcoin Testnet at [`0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD`](https://creditcoin-testnet.blockscout.com/address/0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD):
+
+**Key Features:**
+- **Append-only history** — `mapping(address => RiskReport[])` — reports are NEVER overwritten
+- **7-dimensional scoring** — overall, liquidity, collateral, audit, security, volatility, governance
+- **Cross-chain verification** — `saveVerifiedRiskReport()` records proofHash from precompile `0x0FD2`
+- **Data provenance** — `bytes32 dataHash` stores `keccak256(canonical_inputs)` for verification
+- **Public audit** — `verifyDataIntegrity()` lets anyone check data consistency
+- **Pagination** — `getReportHistoryPaginated()` for gas-efficient reads
 
 ```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-/// @title CreditPulse AI Risk Scoring Contract
-/// @author CreditPulse AI Team
-/// @notice Decentralized credit scoring protocol for Real-World Assets
-/// @dev Mints immutable, cryptographically verifiable risk certificates
-contract CreditPulseScore {
-    string public constant VERSION = "1.0.0";
+contract CreditPulseASC {
+    string public constant VERSION = "3.2.0";
+    address public constant BLOCK_PROVER = address(0x0FD2);
     
-    address public owner;
     uint256 public reportCount;
-    
-    mapping(string => uint256) public assetReportCount;
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not authorized");
-        _;
-    }
+    uint256 public verifiedProofCount;
 
     struct RiskReport {
-        string assetAddress;
-        uint256 overallScore;
-        uint256 liquidity;
-        uint256 collateral;
-        uint256 auditScore;
-        uint256 timestamp;
+        address assetAddress;
+        uint8 overallScore; uint8 liquidity; uint8 collateral;
+        uint8 auditScore; uint8 security; uint8 volatility; uint8 governance;
+        bytes32 dataHash;           // keccak256 of oracle source data
+        bytes32 proofHash;          // queryId from 0x0FD2 precompile
+        uint40 timestamp;
         address verifiedBy;
+        bool crossChainVerified;    // true if verified via Attestcoin
     }
 
-    mapping(string => RiskReport) public assetReports;
+    mapping(address => RiskReport[]) public assetReportHistory;
+
+    // Standard recording (no cross-chain proof)
+    function saveRiskReport(address, uint8[7], bytes32 _dataHash) external onlyOwner;
     
-    event ReportSaved(
-        string assetAddress, 
-        uint256 overallScore, 
-        uint256 liquidity, 
-        uint256 collateral, 
-        uint256 auditScore, 
-        address indexed verifiedBy, 
-        uint256 timestamp
-    );
-
-    /// @notice Initializes the contract and sets the owner
-    constructor() {
-        owner = msg.sender;
-    }
-
-    /// @notice Transfers ownership of the contract
-    /// @param newOwner Address of the new owner
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "Invalid new owner");
-        owner = newOwner;
-    }
-
-    /// @notice Saves a risk report for an asset
-    /// @dev Only the contract owner can call this function
-    /// @param _assetAddress The address of the asset being reported
-    /// @param _overallScore The overall risk score of the asset
-    /// @param _liquidity The liquidity depth score
-    /// @param _collateral The collateral quality score
-    /// @param _auditScore The audit status score
-    function saveRiskReport(
-        address _assetAddress,
-        uint8 _overallScore,
-        uint8 _liquidity,
-        uint8 _collateral,
-        uint8 _auditScore
-    ) public onlyOwner {
-        require(_assetAddress != address(0), "Invalid asset address");
-        require(_overallScore <= 100, "Score exceeds maximum");
-        require(_liquidity <= 100, "Liquidity exceeds maximum");
-        require(_collateral <= 100, "Collateral exceeds maximum");
-        require(_auditScore <= 100, "Audit score exceeds maximum");
-
-        assetReports[_assetAddress] = RiskReport({
-            assetAddress: _assetAddress,
-            overallScore: _overallScore,
-            liquidity: _liquidity,
-            collateral: _collateral,
-            auditScore: _auditScore,
-            timestamp: block.timestamp,
-            verifiedBy: msg.sender
-        });
-        
-        reportCount++;
-        assetReportCount[_assetAddress]++;
-
-        emit ReportSaved(_assetAddress, _overallScore, _liquidity, _collateral, _auditScore, msg.sender, block.timestamp);
-    }
-
-    /// @notice Retrieves the latest risk report for an asset
-    /// @param _assetAddress The address of the asset
-    /// @return RiskReport The latest risk report for the given asset
-    function getRiskReport(address _assetAddress) public view returns (RiskReport memory) {
-        return assetReports[_assetAddress];
-    }
+    // Recording with pre-verified cross-chain proof  
+    function saveVerifiedRiskReport(
+        uint32 _sourceChainId, bytes32 _proofHash,
+        address, uint8[7], bytes32 _dataHash
+    ) external onlyOwner;
     
-    /// @notice Retrieves the total number of reports saved
-    /// @return The total number of reports
-    function getReportCount() external view returns (uint256) { 
-        return reportCount; 
-    }
+    // Public data integrity check
+    function verifyDataIntegrity(address, uint256 _index, bytes32 _expected) external view returns (bool);
 }
 ```
 

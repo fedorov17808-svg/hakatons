@@ -38,8 +38,8 @@ describe("CreditPulseASC", function () {
       expect(await contract.owner()).to.equal(owner.address);
     });
 
-    it("should have version 3.1.0-hardened", async function () {
-      expect(await contract.VERSION()).to.equal("3.1.0-hardened");
+    it("should have version 3.2.0", async function () {
+      expect(await contract.VERSION()).to.equal("3.2.0");
     });
 
     it("should start with 0 reports", async function () {

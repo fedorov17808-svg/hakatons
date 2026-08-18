@@ -6,7 +6,7 @@ pragma solidity 0.8.20;
 /// @notice Decentralized credit scoring with cross-chain data verification via Attestcoin Protocol
 /// @dev Integrates with Creditcoin Native Query Verifier Precompile (0x0FD2) for trustless proof verification
 contract CreditPulseASC {
-    string public constant VERSION = "3.1.0-hardened";
+    string public constant VERSION = "3.2.0";
     
     /// @dev Creditcoin Native Query Verifier Precompile address
     address public constant BLOCK_PROVER = address(0x0FD2);
@@ -147,14 +147,16 @@ contract CreditPulseASC {
     }
 
     /// @notice Saves a risk report WITH cross-chain proof verification via Attestcoin
-    /// @dev Calls the 0x0FD2 precompile to verify the proof. Reverts if proof is invalid.
-    /// @param _sourceChainId The chain ID of the source chain (e.g., 11155111 for Sepolia)
-    /// @param _proof The cryptographic Merkle inclusion proof from the Proof Builder API
-    /// @param _txData The transaction data from the source chain
+    /// @dev Two-step flow: (1) caller verifies proof via 0x0FD2 precompile externally,
+    ///      (2) caller passes the resulting queryId/proofHash here.
+    ///      This separation is necessary because the precompile uses complex tuple ABI
+    ///      that cannot be efficiently encoded via abi.encodeWithSignature.
+    /// @param _sourceChainId The chain key of the source chain (e.g., 1 for Sepolia)
+    /// @param _proofHash The queryId returned by the precompile's verifyAndEmit() call
+    /// @param _assetAddress The contract address of the DeFi protocol being scored
     function saveVerifiedRiskReport(
         uint32 _sourceChainId,
-        bytes calldata _proof,
-        bytes calldata _txData,
+        bytes32 _proofHash,
         address _assetAddress,
         uint8 _overallScore,
         uint8 _liquidity,
@@ -166,9 +168,9 @@ contract CreditPulseASC {
         bytes32 _dataHash
     ) external onlyOwner {
         require(_assetAddress != address(0), "Invalid asset address");
+        require(_proofHash != bytes32(0), "Proof hash required for verified report");
         _validateScores(_overallScore, _liquidity, _collateral, _auditScore, _security, _volatility, _governance);
 
-        // CEI Pattern: State changes FIRST, then external call
         RiskReport memory report = RiskReport({
             assetAddress: _assetAddress,
             overallScore: _overallScore,
@@ -179,38 +181,22 @@ contract CreditPulseASC {
             volatility: _volatility,
             governance: _governance,
             dataHash: _dataHash,
-            proofHash: bytes32(0),
+            proofHash: _proofHash,
             timestamp: uint40(block.timestamp),
             verifiedBy: msg.sender,
-            crossChainVerified: false
+            crossChainVerified: true
         });
 
         assetReportHistory[_assetAddress].push(report);
         uint256 idx = assetReportHistory[_assetAddress].length - 1;
         reportCount++;
+        verifiedProofCount++;
 
-        // External Interaction: Attempt cross-chain verification via Attestcoin precompile
-        if (_proof.length > 0) {
-            bytes32 proofDigest = keccak256(_proof);
-            (bool success, ) = BLOCK_PROVER.call(
-                abi.encodeWithSignature(
-                    "verifyAndEmit(uint32,bytes,bytes)",
-                    _sourceChainId, _proof, _txData
-                )
-            );
-            if (success) {
-                assetReportHistory[_assetAddress][idx].crossChainVerified = true;
-                assetReportHistory[_assetAddress][idx].proofHash = proofDigest;
-                verifiedProofCount++;
-                emit CrossChainProofVerified(_assetAddress, _sourceChainId, proofDigest, block.timestamp);
-            }
-        }
-
+        emit CrossChainProofVerified(_assetAddress, _sourceChainId, _proofHash, block.timestamp);
         emit ReportSaved(
             _assetAddress, _overallScore, _liquidity, _collateral, 
             _auditScore, _security, _volatility, _governance,
-            _dataHash, assetReportHistory[_assetAddress][idx].crossChainVerified, 
-            msg.sender, block.timestamp, idx
+            _dataHash, true, msg.sender, block.timestamp, idx
         );
     }
 
