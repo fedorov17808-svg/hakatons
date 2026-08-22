@@ -83,7 +83,7 @@ Try these real DeFi and Real-World Asset (RWA) protocol addresses in 1-click on 
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract (ASC)** | [`0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD`](https://creditcoin-testnet.blockscout.com/address/0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD#code) (v7.0.0 Enterprise) |
+| **Smart Contract (ASC)** | [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438#code) (v7.0.0 Enterprise) |
 | **Native Precompile** | [`0x0000000000000000000000000000000000000FD2`](https://creditcoin-testnet.blockscout.com/address/0x0000000000000000000000000000000000000FD2) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
@@ -155,7 +155,7 @@ If a single-day capital flight exceeds $-35\%$, the overall score is forced down
 
 ## 📜 Smart Contract Specification
 
-The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) v7.0.0 is deployed on Creditcoin Testnet at [`0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD`](https://creditcoin-testnet.blockscout.com/address/0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD):
+The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) v7.0.0 is deployed on Creditcoin Testnet at [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438):
 
 ```solidity
 contract CreditPulseASC {

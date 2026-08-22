@@ -13,7 +13,7 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: CONTRACT_ADDRESS
-        value: "0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD"
+        value: "0x358925c5839a36bB2181786B8763Da0653B0f438"
       - key: RPC_URL
         value: "https://rpc.cc3-testnet.creditcoin.network"
       - key: PYTHON_VERSION
