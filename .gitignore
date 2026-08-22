@@ -11,16 +11,22 @@ __pycache__/
 
 # Environment & Secrets
 .env
+.env.*
 .env.local
 .env.*.local
 *.env
 contracts/.env
 contracts/.env.local
 backend/.env
+backend/.env.*
 backend/.env.local
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!contracts/.env.example
 
 # Hardhat & Smart Contracts Build
 artifacts/

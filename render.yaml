@@ -6,14 +6,14 @@ services:
     plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PRIVATE_KEY
         sync: false
       - key: CORS_ORIGINS
         sync: false
       - key: CONTRACT_ADDRESS
-        value: "0xa643984b1e111B41644671E74dc1A2B93E6F2ff1"
+        value: "0xE3F9Bffb0616e1f52f914544fF4C2df2A21619BD"
       - key: RPC_URL
         value: "https://rpc.cc3-testnet.creditcoin.network"
       - key: PYTHON_VERSION
