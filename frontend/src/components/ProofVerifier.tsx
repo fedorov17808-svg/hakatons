@@ -157,9 +157,20 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
           </button>
         </div>
 
+        <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 mb-4 text-xs space-y-2 text-slate-300">
+          <div className="font-semibold text-indigo-300 flex items-center gap-2">
+            <span>ℹ️</span>
+            <span>How Native Precompile 0x0FD2 Operates in Creditcoin CC3:</span>
+          </div>
+          <p className="text-slate-400 leading-relaxed">
+            Creditcoin CC3 validator nodes continuously attest source chain (e.g. Sepolia/Ethereum) block trees. 
+            Smart contracts call hardware precompile <code className="text-indigo-400 font-mono">0x0FD2</code> with Merkle branch siblings and continuity roots to trustlessly verify cross-chain state inclusion with zero third-party bridges.
+          </p>
+        </div>
+
         <div className="flex items-center justify-between text-xs text-slate-500 mb-6 flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <span>Verified Testnet Benchmark:</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-400">Attested Presets:</span>
             <button
               type="button"
               onClick={() => {
@@ -167,9 +178,31 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
                 setAttestcoinTxHash(sample);
                 verifyAttestation(sample);
               }}
-              className="text-indigo-400 hover:text-indigo-300 font-mono underline"
+              className="text-indigo-400 hover:text-indigo-300 font-mono underline bg-indigo-950/40 px-2 py-1 rounded border border-indigo-500/30"
             >
-              Sepolia Block #8812893 (Click to Load)
+              1. Aave Deposit (#8812893)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const sample = "0x9812dfa4b100874e08c02c6fe711e9f1a23e93a7726487e416a41f649887711a";
+                setAttestcoinTxHash(sample);
+                verifyAttestation(sample);
+              }}
+              className="text-indigo-400 hover:text-indigo-300 font-mono underline bg-indigo-950/40 px-2 py-1 rounded border border-indigo-500/30"
+            >
+              2. Ondo USDY Mint (#8812894)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const sample = "0x358925c5839a36bb2181786b8763da0653b0f43818e8fcc30fd2aa11e49b8821";
+                setAttestcoinTxHash(sample);
+                verifyAttestation(sample);
+              }}
+              className="text-indigo-400 hover:text-indigo-300 font-mono underline bg-indigo-950/40 px-2 py-1 rounded border border-indigo-500/30"
+            >
+              3. Centrifuge RWA (#8812895)
             </button>
           </div>
           <span className="text-slate-400">Precompile: <code className="text-indigo-400 font-mono">0x0FD2</code></span>
