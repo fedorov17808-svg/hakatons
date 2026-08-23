@@ -59,6 +59,24 @@ Creditcoin is the foundational credit layer for decentralized finance and Real-W
 
 ---
 
+## 💼 B2B Business Model & Tokenomics ($CTC Utility)
+
+CreditPulse AI operates as an **Oracle-as-a-Service (OaaS)** infrastructure driving direct economic value, fee burn, and staking demand to the Creditcoin ecosystem:
+
+1. **Per-Query & Subscription Fees ($CTC):**
+   * Under-collateralized lending protocols (e.g. Clearpool, Maple, Centrifuge) and RWA issuers pay a fee in **native $CTC** to query on-chain ratings via `getRiskReport(assetAddress)`.
+   * **Fee Distribution:** 60% rewarded to DON Oracle node operators, 20% burned (deflationary pressure on $CTC), and 20% deposited into the Protocol Insurance Reserve Pool.
+2. **Decentralized Oracle Staking & Economic Slashing:**
+   * Validator nodes in the Decentralized Oracle Network (DON) must stake a minimum of **1,000 CTC** in `CreditPulseASC.sol`.
+   * Malicious or out-of-consensus reporting triggers smart contract slashing via `slashOracle()`, protecting downstream capital with cryptographic economic security.
+3. **Optimistic Challenge Bond & Bounty:**
+   * Challengers can dispute a flagged risk report by depositing a **0.05 CTC bond** during the 3-day optimistic dispute window.
+   * If the challenge is validated, the challenger receives a **50% bounty** from the slashed oracle stake, with 50% flowing to the Insurance Pool.
+4. **Direct Driver of Creditcoin TVL & Institutional Adoption:**
+   * Bridges traditional credit assessment directly into Creditcoin CC3, allowing institutional RWA treasuries to justify on-chain allocations with formal audit trails.
+
+---
+
 ## 🎯 Demo Addresses
 
 Try these real DeFi and Real-World Asset (RWA) protocol addresses in 1-click on the UI:

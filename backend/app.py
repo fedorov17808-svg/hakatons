@@ -217,14 +217,32 @@ async def limit_upload_size(request: Request, call_next):
 
 don_coordinator = DONCoordinator(os.getenv("PRIVATE_KEY"))
 
+def _warmup_cache():
+    time.sleep(1)
+    logger.info("Pre-warming multi-source cache for demo presets...")
+    presets = [
+        "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+        "0xe8684521db5a68778844145ba0a0374d8e95e140",
+        "0x59d9356c82bbe361148f864a1d74076C449c761a",
+        "0xf1c9881be22ebf4084f32a4e21ff272c7cb6c710",
+        "0xc3d688B66703497DAA19211EEdff47f25384cdc3"
+    ]
+    for addr in presets:
+        try:
+            get_multi_source_asset_data(addr)
+        except Exception as e:
+            logger.debug(f"Warmup notice for {addr}: {e}")
+    logger.info("✅ Multi-source cache pre-warmed. Instant 0ms response ready.")
+
 @app.on_event("startup")
 def startup_event():
-    logger.info("Initializing CreditPulse AI Engine v7.0.0 Enterprise...")
+    logger.info("Initializing CreditPulse AI Engine v7.2.0 Enterprise...")
     pk = os.getenv("PRIVATE_KEY")
     if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
         logger.warning("PRIVATE_KEY not provided or invalid — recording will be restricted.")
     
     threading.Thread(target=get_protocols_cached, daemon=True).start()
+    threading.Thread(target=_warmup_cache, daemon=True).start()
 
 async def verify_api_key(x_api_key: str = Header(default=None)):
     """Verify the provided API key against the environment variable."""

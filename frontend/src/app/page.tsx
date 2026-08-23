@@ -81,7 +81,7 @@ export default function Home() {
   const [loadingOnchainHistory, setLoadingOnchainHistory] = useState(false);
   const [rwaPoRData, setRwaPoRData] = useState<RWAAttestationData | null>(null);
   const [donNodes, setDonNodes] = useState<DONNodeItem[]>([]);
-  const [submissionMode, setSubmissionMode] = useState<'direct' | 'relayer'>('direct');
+  const [submissionMode, setSubmissionMode] = useState<'direct' | 'relayer'>('relayer');
   
   const [account, setAccount] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
