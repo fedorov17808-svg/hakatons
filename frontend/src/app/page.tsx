@@ -7,6 +7,7 @@ import { Header } from "@/components/Header";
 import { RadarChartComponent } from "@/components/RadarChartComponent";
 import { RiskMetrics, RiskResult, getScoreColor, getScoreText, getVerdictStyle } from "@/components/RiskMetrics";
 import { ProofVerifier } from "@/components/ProofVerifier";
+import { InstitutionalPortal } from "@/components/InstitutionalPortal";
 import { Footer } from "@/components/Footer";
 
 const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
@@ -1096,6 +1097,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         )}
       </div>
 
+      <InstitutionalPortal />
       <ProofVerifier apiUrl={API_URL} />
       <Footer />
     </main>

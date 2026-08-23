@@ -1,0 +1,26 @@
+{
+  "name": "@creditpulse/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript & JavaScript Developer SDK for CreditPulse AI Institutional Credit Scoring on Creditcoin CC3",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "creditcoin",
+    "credit-scoring",
+    "rwa",
+    "defi",
+    "oracle",
+    "zktls"
+  ],
+  "author": "CreditPulse AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
