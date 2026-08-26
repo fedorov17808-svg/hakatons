@@ -44,6 +44,8 @@ from app import (
     execute_autonomous_cycle,
     attestcoin_verify,
     AttestcoinVerifyRequest,
+)
+from routes.quant_and_consensus import (
     api_quant_monte_carlo,
     MonteCarloRequest,
     api_quant_stress_test,

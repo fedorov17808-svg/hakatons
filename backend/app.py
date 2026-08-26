@@ -168,6 +168,10 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 
+# --- Register modular route groups ---
+from routes.quant_and_consensus import router as quant_router
+app.include_router(quant_router)
+
 # --- Security Headers Middleware ---
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -1611,108 +1615,4 @@ def toggle_autonomous_keeper(active: bool):
         _stop_keeper_scheduler()
     return {"status": "ACTIVE" if active else "PAUSED", "is_running": active}
 
-# --- Institutional Quantitative Risk & Stress-Testing API ---
-
-class MonteCarloRequest(BaseModel):
-    tvl_usd: float
-    score: float
-    iterations: Optional[int] = 10000
-    time_horizon_days: Optional[int] = 30
-    daily_volatility: Optional[float] = 0.04
-
-@app.post("/api/quant/monte-carlo", tags=['Quantitative Risk'])
-def api_quant_monte_carlo(req: MonteCarloRequest):
-    """
-    Execute a 10,000-path Monte Carlo jump-diffusion simulation to calculate
-    VaR (Value at Risk 95/99), CVaR (Expected Shortfall), and tail-risk insolvency probabilities.
-    """
-    return QuantRiskEngine.run_monte_carlo(
-        tvl_usd=req.tvl_usd,
-        score=req.score,
-        iterations=req.iterations or 10000,
-        time_horizon_days=req.time_horizon_days or 30,
-        daily_volatility=req.daily_volatility or 0.04
-    )
-
-class StressTestRequest(BaseModel):
-    tvl_usd: float
-    score: float
-    scenario: Optional[str] = "black_thursday_2020"
-
-@app.post("/api/quant/stress-test", tags=['Quantitative Risk'])
-def api_quant_stress_test(req: StressTestRequest):
-    """
-    Simulate historical financial crisis scenarios (Black Thursday 2020, Terra/LUNA 2022, SVB Depeg 2023).
-    """
-    return QuantRiskEngine.run_historical_stress_test(
-        tvl_usd=req.tvl_usd,
-        score=req.score,
-        scenario_key=req.scenario or "black_thursday_2020"
-    )
-
-# --- BLS12-381 Quorum & P2P Gossip Telemetry API ---
-
-class BLSAggregationRequest(BaseModel):
-    message_hash: str
-    signatures: List[Dict[str, Any]]
-
-@app.post("/api/don/bls-aggregate", tags=['DON Consensus'])
-def api_don_bls_aggregate(req: BLSAggregationRequest):
-    """
-    Aggregate M-of-N validator signatures into a single compact BLS12-381 proof.
-    """
-    try:
-        return BLSQuorumEngine.aggregate_signatures(
-            message_hash=req.message_hash,
-            node_signatures=req.signatures
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.get("/api/don/p2p-telemetry", tags=['DON Consensus'])
-def api_don_p2p_telemetry():
-    """
-    Retrieve live P2P mesh cluster topology with real latency measurements.
-    Performs actual HTTP healthchecks against all validator node endpoints.
-    """
-    # Collect real latencies from DON coordinator healthcheck
-    try:
-        cluster_status = don_coordinator.get_cluster_status()
-        live_latencies = {}
-        for node in cluster_status.get("nodes", []):
-            node_id = node.get("node_id", "")
-            latency = node.get("latency_ms", -1.0)
-            if node_id:
-                live_latencies[node_id] = latency
-    except Exception:
-        live_latencies = None
-
-    return BLSQuorumEngine.get_p2p_network_telemetry(live_latencies=live_latencies)
-
-# --- Cross-Chain Multi-Network Relayer API ---
-
-class CrossChainRelayRequest(BaseModel):
-    target_chain_id: int
-    asset_address: str
-    score: int
-    dynamic_ltv: int
-    risk_tier: str
-    data_hash: str
-    cc3_tx_hash: str
-
-@app.post("/api/cross-chain/relay", tags=['Cross-Chain'])
-def api_cross_chain_relay(req: CrossChainRelayRequest):
-    """
-    ABI-encode a cross-chain credit score relay packet for EIP-5164 / LayerZero delivery.
-    Returns encoded calldata ready for bridge contract submission.
-    """
-    return CrossChainRelayer.encode_cross_chain_payload(
-        target_chain_id=req.target_chain_id,
-        asset_address=req.asset_address,
-        score=req.score,
-        dynamic_ltv=req.dynamic_ltv,
-        risk_tier=req.risk_tier,
-        data_hash=req.data_hash,
-        cc3_tx_hash=req.cc3_tx_hash
-    )
 
