@@ -11,6 +11,7 @@ import { InstitutionalPortal } from "@/components/InstitutionalPortal";
 import { Footer } from "@/components/Footer";
 import { DONClusterMonitor } from "@/components/DONClusterMonitor";
 import { AnalysisForm } from "@/components/AnalysisForm";
+import { ScoreHeader } from "@/components/ScoreHeader";
 import {
   EXPLORER_URL, API_URL, CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI,
   PRESET_ASSETS, getButtonGradient,
@@ -669,27 +670,13 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         {/* Results Dashboard */}
         {!loading && result && (
           <section id="section-results" className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
-            <div className="flex justify-between items-start border-b border-slate-800 pb-4 flex-wrap gap-4">
-              <div>
-                <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Asset Category</span>
-                <p className="text-lg font-semibold text-slate-200">{result.rwa_type}</p>
-                {result.protocol_name && result.protocol_name !== 'Unknown' && (
-                  <p className='text-sm text-cyan-400 font-mono mt-1'>Protocol: {result.protocol_name}</p>
-                )}
-              </div>
-              <div className="text-right flex flex-col items-end">
-                <span className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-2">Overall Credit Score</span>
-                <div className="flex items-baseline gap-2">
-                  <p className={`text-7xl md:text-8xl font-black tracking-tighter ${getScoreColor(result.score || 0).text}`}>{displayScore}</p>
-                  <span className="text-2xl font-bold text-slate-500">/100</span>
-                </div>
-                <div className="mt-3">
-                  <span className={`text-sm px-4 py-1 rounded-full border-2 font-bold tracking-wide uppercase ${getScoreColor(result.score || 0).text} border-current shadow-lg`}>
-                    {getScoreText(result.score || 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <ScoreHeader
+              score={result.score || 0}
+              displayScore={displayScore}
+              rwaType={result.rwa_type}
+              protocolName={result.protocol_name}
+              tvl={result.tvl}
+            />
 
             {/* Radar Chart & Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
