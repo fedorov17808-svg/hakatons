@@ -1,14 +1,19 @@
 """
-End-to-End Test Suite for CreditPulse AI v7.0.0 Enterprise Architecture
-Validates all 8 Hardening Phases:
+End-to-End Test Suite for CreditPulse AI v7.2.0 Enterprise Architecture
+Validates all 13 Enterprise Production Phases:
 1. Cryptographic Signature Generation & Multi-Oracle Threshold Quorum
 2. Live Multi-Token EVM RPC Introspection for Unlisted Contracts
 3. Transparent Attestcoin Verification & Diagnostics
 4. Autonomous Background Credit Keeper
 5. 100% Deterministic Mathematical Core & Provenance
 6. Non-Linear Adaptive Matrices & Catastrophic Circuit Breaker Hard Cap
-7. Cryptographic zkTLS Proof-of-Reserve (PoR) Attestation & Redacted Zero-Knowledge Commitments
+7. Cryptographic Proof-of-Reserve (PoR) Attestation & Keccak256 Hash Commitments
 8. Federated Multi-Node DON Cluster Health & BFT Consensus Gathering
+9. Scoring Transparency (Weight Profile Dict, Rationale Breakdown) & Version Integrity
+10. Institutional Quantitative Risk Engine (Monte Carlo Jump-Diffusion & Historical Crisis Stress Testing)
+11. BLS12-381 Signature Aggregation & Cross-Chain Multi-Network Delivery
+12. Direct On-Chain EVM RPC State & Reserves Indexer (Autonomous Web2-independent mode)
+13. Persistent Standalone Keeper Daemon & SQLite WAL Audit Engine
 """
 
 import os
@@ -38,10 +43,24 @@ from app import (
     get_autonomous_status,
     execute_autonomous_cycle,
     attestcoin_verify,
-    AttestcoinVerifyRequest
+    AttestcoinVerifyRequest,
+    api_quant_monte_carlo,
+    MonteCarloRequest,
+    api_quant_stress_test,
+    StressTestRequest,
+    api_don_bls_aggregate,
+    BLSAggregationRequest,
+    api_don_p2p_telemetry,
+    api_cross_chain_relay,
+    CrossChainRelayRequest
 )
 from zktls.verifier import ZkTLSEngine
 from nodes.don_coordinator import DONCoordinator
+from quant_risk import QuantRiskEngine
+from nodes.bls_quorum import BLSQuorumEngine
+from cross_chain_relayer import CrossChainRelayer
+from onchain_indexer import OnChainIndexer
+from keeper_daemon import StandaloneKeeperDaemon, PersistentKeeperStore
 from risk_engine import (
     compute_scores,
     compute_canonical_data_hash,
@@ -222,7 +241,7 @@ class TestCreditPulseE2E(unittest.TestCase):
         self.assertTrue(flash_surge_data["liquidity_spike_detected"])
         self.assertTrue(flash_surge_data["circuit_breaker_active"])
         self.assertLessEqual(flash_surge_data["overall"], 58)
-        self.assertIn("Anti-Flash-Loan", flash_surge_data["circuit_breaker_reason"])
+        self.assertIn("Anti-TVL-Spike", flash_surge_data["circuit_breaker_reason"])
 
         # Vector 3: Brand new 4-day-old unseasoned contract with artificial $100M TVL (Lindy Seasoning)
         now_ts = 1700000000
@@ -268,8 +287,8 @@ class TestCreditPulseE2E(unittest.TestCase):
         self.assertLessEqual(divergence_data["volatility_score"], 40)
         print("✅ Phase 6 Verified: All 5 Enterprise Anti-Manipulation & Circuit Breaker vectors 100% hardened.")
 
-    def test_phase7_cryptographic_zktls_attestation(self):
-        """Phase 7: Validate cryptographic zkTLS session commitments and redacted bank proofs."""
+    def test_phase7_cryptographic_por_attestation(self):
+        """Phase 7: Validate Keccak256 PoR commitments and redacted bank proofs."""
         attest_res = api_zktls_attest(ZkTLSRARequest(
             asset_address="0xe8684521db5a68778844145ba0a0374d8e95e140",
             token_supply_usd=450_000_000,
@@ -290,8 +309,9 @@ class TestCreditPulseE2E(unittest.TestCase):
         self.assertTrue(details["session_commitment"].startswith("0x"))
         self.assertTrue(details["zk_tls_proof_hash"].startswith("0x"))
         self.assertTrue(details["custodian_key_hash"].startswith("0x"))
-        self.assertIn("TLSNotary", details["tls_standard"])
-        print("✅ Phase 7 Verified: Distributed DON zkTLS session commitments & quorum signatures sound.")
+        self.assertIn("TLS", details["tls_standard"])
+        self.assertIn("TLSNotary", details.get("production_upgrade_path", ""))
+        print("✅ Phase 7 Verified: Distributed DON PoR commitments & quorum signatures sound.")
 
     def test_phase8_federated_multi_node_don_cluster(self):
         """Phase 8: Validate Federated Multi-Node DON Cluster health and BFT consensus gathering."""
@@ -326,6 +346,165 @@ class TestCreditPulseE2E(unittest.TestCase):
         # Verify signers are strictly sorted in ascending order for EVM compliance
         self.assertTrue(consensus_res["signers"][0].lower() <= consensus_res["signers"][1].lower())
         print("✅ Phase 8 Verified: Federated Multi-Node DON cluster & BFT threshold quorum 100% operational.")
+
+    def test_phase9_scoring_transparency_and_version_integrity(self):
+        """Phase 9: Validate scoring transparency (weight_profile dict, breakdown rationales) and version integrity."""
+        from app import health, api_stats, api_methodology, app as fastapi_app
+        
+        # 1. Verify FastAPI app and endpoint versions
+        self.assertEqual(fastapi_app.version, "7.2.0")
+        h = health()
+        self.assertEqual(h["version"], "7.2.0")
+        s = api_stats()
+        self.assertEqual(s["version"], "7.2.0")
+        m = api_methodology()
+        self.assertEqual(m["version"], "7.2.0")
+
+        # 2. Verify analyze response contains structured weight_profile dict and scoring_breakdown
+        address = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"
+        analysis = process_analysis(address)
+        
+        self.assertEqual(analysis["formula_version"], "7.2")
+        self.assertIsInstance(analysis["weight_profile"], dict)
+        self.assertTrue(len(analysis["weight_profile"]) >= 5)
+        # Weights should sum to approximately 1.0
+        total_weight = sum(analysis["weight_profile"].values())
+        self.assertAlmostEqual(total_weight, 1.0, places=2)
+        
+        self.assertIsInstance(analysis["scoring_breakdown"], dict)
+        required_breakdown_keys = ["liquidity", "collateral", "security", "volatility", "governance", "audit", "seasoning"]
+        for k in required_breakdown_keys:
+            self.assertIn(k, analysis["scoring_breakdown"])
+            self.assertTrue(len(str(analysis["scoring_breakdown"][k])) > 0)
+            
+        # 3. Verify CryptoPoREngine independent verification with blinding factors
+        attestation = ZkTLSEngine.generate_bank_por_attestation(
+            asset_address=address,
+            token_supply_usd=100_000_000,
+            reserve_balance_usd=105_000_000,
+        )
+        self.assertTrue(attestation["independent_verification"]["claim_commitment_valid"])
+        self.assertTrue(attestation["independent_verification"]["session_commitment_valid"])
+        print("✅ Phase 9 Verified: Scoring transparency (weight_profile dict, breakdown) & version integrity 100% sound.")
+
+    def test_phase_10_monte_carlo_quant_risk(self):
+        """Phase 10: Validate Monte Carlo jump-diffusion simulation and crisis stress-testing."""
+        # 1. Test Monte Carlo Simulation
+        mc_res = api_quant_monte_carlo(MonteCarloRequest(
+            tvl_usd=50_000_000,
+            score=88.0,
+            iterations=1000,
+            time_horizon_days=30
+        ))
+        self.assertIn("metrics", mc_res)
+        self.assertIn("var_95_pct", mc_res["metrics"])
+        self.assertIn("var_99_pct", mc_res["metrics"])
+        self.assertIn("cvar_95_pct", mc_res["metrics"])
+        self.assertIn("insolvency_probability_pct", mc_res["metrics"])
+        self.assertTrue(mc_res["metrics"]["var_99_pct"] >= mc_res["metrics"]["var_95_pct"])
+        self.assertIn(mc_res["risk_rating"], ["AAA", "AA", "A", "BBB", "HighRisk"])
+
+        # 2. Test Historical Crisis Stress Testing
+        stress_res = api_quant_stress_test(StressTestRequest(
+            tvl_usd=50_000_000,
+            score=88.0,
+            scenario="black_thursday_2020"
+        ))
+        self.assertIn("post_shock_tvl_usd", stress_res)
+        self.assertIn("survivability_score", stress_res)
+        self.assertTrue(stress_res["is_solvent"])
+        self.assertEqual(stress_res["resilience_grade"], "Resilient")
+        print("✅ Phase 10 Verified: Institutional Quantitative Risk Engine (Monte Carlo & Stress-Testing) 100% sound.")
+
+    def test_phase_11_bls_aggregation_and_cross_chain(self):
+        """Phase 11: Validate REAL BLS12-381 signature aggregation (py_ecc) and Cross-Chain ABI encoding."""
+        # 1. Test REAL BLS12-381 Signature Aggregation (elliptic curve pairing)
+        test_hash = "0x41b4ad0faa2c1414e08c02c6fe711e9f1a23e93a7726487e416a41f649887711"
+        sample_signatures = [
+            {"node_id": "node-alpha", "signer_address": "0x55ac26863a79cdab5304164afb3c5fac65916585"},
+            {"node_id": "node-beta",  "signer_address": "0xfcad0b19bb29d4674531d6f115237e16afce377c"}
+        ]
+        bls_res = BLSQuorumEngine.aggregate_signatures(
+            message_hash=test_hash,
+            node_signatures=sample_signatures
+        )
+        self.assertTrue(bls_res["aggregated_signature"].startswith("0x"))
+        self.assertTrue(bls_res["aggregation_verified"], "BLS pairing check must pass")
+        self.assertEqual(bls_res["total_signers"], 2)
+        self.assertEqual(bls_res["signature_size_bytes"], 96)  # Real G2 point = 96 bytes
+        self.assertIn("py_ecc", bls_res["scheme"])
+        self.assertIn("gas_economics", bls_res)
+        self.assertEqual(bls_res["status"], "AGGREGATED_CONSENSUS_VERIFIED")
+
+        # 2. Test P2P Topology Telemetry (real healthcheck — nodes may or may not be up)
+        p2p_telemetry = BLSQuorumEngine.get_p2p_network_telemetry()
+        self.assertIn("mesh_clusters", p2p_telemetry)
+        self.assertEqual(p2p_telemetry["total_configured_peers"], 3)
+        self.assertIn("active_peers", p2p_telemetry)
+
+        # 3. Test Cross-Chain ABI-Encoded Packet
+        relay_res = api_cross_chain_relay(CrossChainRelayRequest(
+            target_chain_id=1,  # Ethereum Mainnet
+            asset_address="0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+            score=88,
+            dynamic_ltv=90,
+            risk_tier="AAA",
+            data_hash=test_hash,
+            cc3_tx_hash="0x7986752dcf8d62a59cfc1c3bdf07df3aadb46095167282fa8818370b844d2fb8"
+        ))
+        self.assertTrue(relay_res["packet_id"].startswith("0x"))
+        self.assertEqual(relay_res["destination_chain"], "Ethereum Mainnet")
+        self.assertEqual(relay_res["status"], "ENCODED_READY_FOR_BRIDGE")
+        self.assertIsNotNone(relay_res.get("abi_encoded_calldata"))  # Real ABI encoding
+        print("✅ Phase 11 Verified: REAL BLS12-381 pairing aggregation (py_ecc) & Cross-Chain ABI encoding 100% sound.")
+
+    def test_phase_12_onchain_indexer(self):
+        """Phase 12: Validate autonomous direct EVM RPC state and token inspection without Web2."""
+        indexer = OnChainIndexer(["https://rpc.cc3-testnet.creditcoin.network"])
+        contract_addr = "0x358925c5839a36bB2181786B8763Da0653B0f438"
+        inspection = indexer.inspect_token_contract(contract_addr)
+        
+        self.assertTrue(inspection["is_contract"])
+        self.assertEqual(inspection["address"], contract_addr)
+        self.assertIn("bytecode_size_bytes", inspection)
+        self.assertTrue(inspection["bytecode_size_bytes"] > 0)
+        self.assertIn("data_source", inspection)
+
+        # Test DEX pool inspection
+        pool_inspection = indexer.inspect_liquidity_pool(contract_addr)
+        self.assertEqual(pool_inspection["pool_address"], contract_addr)
+        print("✅ Phase 12 Verified: Direct On-Chain EVM RPC state & reserve indexer 100% sound.")
+
+    def test_phase_13_persistent_keeper_daemon(self):
+        """Phase 13: Validate persistent SQLite/WAL audit store and single evaluation cycle."""
+        store = PersistentKeeperStore()
+        
+        # Test storing evaluation audit cycle
+        sample_evals = [{
+            "asset_name": "Test Aave",
+            "asset_address": "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+            "new_score": 88,
+            "onchain_score": 88,
+            "score_drift_pts": 0.0,
+            "needs_update": False,
+            "trigger_reason": "STABLE",
+            "tx_hash": None,
+            "data_hash": "0x41b4ad0faa2c1414e08c02c6fe711e9f1a23e93a7726487e416a41f649887711",
+            "status": "MONITORED_OK"
+        }]
+        cycle_id = store.record_cycle(
+            evaluated_count=1,
+            broadcasted_count=0,
+            cycle_duration_ms=15.4,
+            evaluations=sample_evals,
+            status="COMPLETED"
+        )
+        self.assertTrue(cycle_id > 0)
+        
+        metrics = store.get_latest_metrics()
+        self.assertTrue(metrics["total_cycles"] > 0)
+        self.assertTrue(len(metrics["recent_history"]) > 0)
+        print("✅ Phase 13 Verified: Persistent Standalone Keeper Daemon & SQLite WAL audit engine 100% sound.")
 
 if __name__ == "__main__":
     unittest.main()

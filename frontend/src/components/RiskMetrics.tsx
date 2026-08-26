@@ -43,6 +43,13 @@ export interface RiskResult {
     hash_algorithm?: string;
     verification?: string;
   };
+  // v7.2.0 — Scoring Transparency fields
+  scoring_engine?: string;
+  ai_role?: string;
+  ai_note?: string;
+  seasoning_score?: number;
+  weight_profile?: Record<string, number | string>;
+  scoring_breakdown?: Record<string, string>;
 }
 
 export const getScoreColor = (score: number) => {

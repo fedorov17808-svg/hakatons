@@ -1,29 +1,35 @@
 #!/usr/bin/env python3
 """Call saveVerifiedRiskReport to increment verifiedProofCount on the contract."""
-import json, os, sys
-sys.path.insert(0, '/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, 'backend'))
 
 from web3 import Web3
 
-RPC = "https://rpc.cc3-testnet.creditcoin.network"
+RPC = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
 w3 = Web3(Web3.HTTPProvider(RPC))
 
-for line in open('/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend/.env'):
-    if line.startswith('PRIVATE_KEY='):
-        PK = line.strip().split('=',1)[1].strip('"').strip("'")
-        break
+PK = os.getenv("PRIVATE_KEY", "")
+env_path = os.path.join(BASE_DIR, 'backend', '.env')
+if not PK and os.path.exists(env_path):
+    for line in open(env_path):
+        if line.startswith('PRIVATE_KEY='):
+            PK = line.strip().split('=', 1)[1].strip('"').strip("'")
+            break
+
+if not PK:
+    PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 account = w3.eth.account.from_key(PK)
 print(f"Account: {account.address}, Balance: {w3.eth.get_balance(account.address) / 1e18:.4f} CTC")
 
-CONTRACT = "0x7eda50D76067D0e9E78822D5581AA31D084c5C2f"
+CONTRACT = os.getenv("CONTRACT_ADDRESS", "0x358925c5839a36bB2181786B8763Da0653B0f438")
 ABI = json.loads('[{"inputs":[{"internalType":"uint32","name":"_sourceChainId","type":"uint32"},{"internalType":"bytes","name":"_proof","type":"bytes"},{"internalType":"bytes","name":"_txData","type":"bytes"},{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveVerifiedRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"reportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"verifiedProofCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]')
 
 contract = w3.eth.contract(address=CONTRACT, abi=ABI)
-print(f"BEFORE: reportCount={contract.functions.reportCount().call()}, verifiedProofCount={contract.functions.verifiedProofCount().call()}")
 
 # Load proof
-proof = json.load(open('/Users/stepchik/.gemini/antigravity/scratch/hakatons/proof_data.json'))
+proof_path = os.path.join(BASE_DIR, 'proof_data.json')
+proof = json.load(open(proof_path))
 block_num = proof['fromHeader']
 merkle_data = proof['merkleProofs'][str(block_num)]
 tx_key = list(merkle_data.keys())[0]

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.0.0 Enterprise Grade
+/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.2.0 Enterprise Grade
 /// @author CreditPulse AI Team
 /// @notice Decentralized credit scoring, Federated Multi-Oracle DON Quorum, Optimistic Dispute Window, Staking/Slashing, and zkTLS Proof-of-Reserve (PoR)
 /// @dev Integrates with Creditcoin Native Query Verifier Precompile (0x0FD2) for trustless cross-chain proof verification
@@ -32,7 +32,7 @@ interface IBlockProver {
 }
 
 contract CreditPulseASC {
-    string public constant VERSION = "7.0.0";
+    string public constant VERSION = "7.2.0";
     bytes32 public constant EIP712_DOMAIN_TYPEHASH = keccak256(
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
     );
@@ -67,6 +67,15 @@ contract CreditPulseASC {
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
+        _;
+    }
+
+    /// @dev Restricts access to authorized oracle nodes, contract owner, or designated oracleSigner
+    modifier onlyAuthorizedOracle() {
+        require(
+            isAuthorizedOracle[msg.sender] || msg.sender == owner || msg.sender == oracleSigner,
+            "Unauthorized: caller is not an authorized oracle"
+        );
         _;
     }
 
@@ -237,6 +246,14 @@ contract CreditPulseASC {
             emit OracleAuthorizationChanged(_oracle, true);
         } else if (!_authorized && isAuthorizedOracle[_oracle]) {
             isAuthorizedOracle[_oracle] = false;
+            // Clean up authorizedOracles array to prevent unbounded growth
+            for (uint256 i = 0; i < authorizedOracles.length; i++) {
+                if (authorizedOracles[i] == _oracle) {
+                    authorizedOracles[i] = authorizedOracles[authorizedOracles.length - 1];
+                    authorizedOracles.pop();
+                    break;
+                }
+            }
             emit OracleAuthorizationChanged(_oracle, false);
         }
     }
@@ -265,13 +282,22 @@ contract CreditPulseASC {
         require(_amount > 0, "Amount must be greater than 0");
         require(oracleStake[msg.sender] >= _amount, "Insufficient stake");
         
-        oracleStake[msg.sender] -= _amount;
+        uint256 remainingStake = oracleStake[msg.sender] - _amount;
+        // If oracle is authorized, enforce minimum stake after unstaking
+        if (isAuthorizedOracle[msg.sender]) {
+            require(
+                remainingStake == 0 || remainingStake >= minOracleStake,
+                "Remaining stake must be 0 or >= minimum oracle stake"
+            );
+        }
+        
+        oracleStake[msg.sender] = remainingStake;
         totalOracleStake -= _amount;
         
         (bool success, ) = payable(msg.sender).call{value: _amount}("");
         require(success, "Unstake transfer failed");
         
-        emit OracleUnstaked(msg.sender, _amount, oracleStake[msg.sender]);
+        emit OracleUnstaked(msg.sender, _amount, remainingStake);
     }
 
     function slashOracle(address _maliciousOracle, address _recipient, uint256 _amount, string calldata _reason) external onlyOwner {
@@ -571,6 +597,9 @@ contract CreditPulseASC {
         address recovered = _recoverSigner(ethSignedMessageHash, _signature);
         require(recovered == oracleSigner || recovered == owner || isAuthorizedOracle[recovered], "Unauthorized oracle signature");
 
+        // Increment nonce for replay protection
+        nonces[recovered]++;
+
         _recordReport(
             _assetAddress,
             _overallScore,
@@ -643,6 +672,8 @@ contract CreditPulseASC {
         );
     }
 
+    /// @notice Save a risk report with AI digest — restricted to authorized oracles only
+    /// @dev Access-controlled to prevent unauthorized score submissions
     function saveRiskReportWithDigest(
         address _assetAddress,
         uint8 _overallScore,
@@ -654,7 +685,7 @@ contract CreditPulseASC {
         uint8 _governance,
         bytes32 _dataHash,
         bytes32 _aiDigest
-    ) external {
+    ) external onlyAuthorizedOracle {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");
@@ -676,6 +707,9 @@ contract CreditPulseASC {
         );
     }
 
+    /// @notice Save a basic risk report — restricted to authorized oracles only
+    /// @dev Access-controlled to prevent unauthorized score submissions.
+    ///      For quorum-verified reports, use saveRiskReportMultiSigned().
     function saveRiskReport(
         address _assetAddress,
         uint8 _overallScore,
@@ -686,7 +720,7 @@ contract CreditPulseASC {
         uint8 _volatility,
         uint8 _governance,
         bytes32 _dataHash
-    ) external {
+    ) external onlyAuthorizedOracle {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");
@@ -763,7 +797,11 @@ contract CreditPulseASC {
             v := byte(0, mload(add(_sig, 96)))
         }
         if (v < 27) v += 27;
-        return ecrecover(_ethSignedMessageHash, v, r, s);
+        require(v == 27 || v == 28, "Invalid signature 'v' value");
+        require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "Invalid signature 's' value");
+        address signer = ecrecover(_ethSignedMessageHash, v, r, s);
+        require(signer != address(0), "Invalid signature recovery");
+        return signer;
     }
 
     function verifyDataIntegrity(address _assetAddress, bytes32 _expectedDataHash) external view returns (bool) {

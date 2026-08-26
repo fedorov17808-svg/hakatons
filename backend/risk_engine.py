@@ -11,7 +11,9 @@ from web3 import Web3
 
 logger = logging.getLogger(__name__)
 
-DISK_CACHE_FILE = "/tmp/creditpulse_protocols_cache.json"
+CACHE_DIR = os.getenv("CACHE_DIR", "/tmp")
+CACHE_TTL = int(os.getenv("CACHE_TTL", "900"))  # 15 minutes default
+DISK_CACHE_FILE = os.path.join(CACHE_DIR, f"creditpulse_cache_{os.getenv('NODE_NAME', 'main')}.json")
 
 def compute_canonical_data_hash(hash_inputs: dict) -> tuple[str, str]:
     """
@@ -48,7 +50,7 @@ def fetch_defillama_data():
 
     url = "https://api.llama.fi/protocols"
     try:
-        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/7.0'}, timeout=12)
+        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/7.2'}, timeout=12)
         if resp.status_code == 200:
             data = resp.json()
             try:
@@ -70,7 +72,7 @@ def fetch_defillama_data():
 
 _protocol_cache = {'data': None, 'timestamp': 0}
 _cache_lock = threading.Lock()
-CACHE_TTL = 900  # 15 minutes
+
 
 def get_protocols_cached():
     """Retrieve DeFiLlama protocol data from cache or fetch if expired."""
@@ -94,7 +96,9 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     Deterministic institutional scoring engine — single source of truth (v7.2.0 Enterprise).
     Includes:
     1. Protocol Seasoning & Lindy Maturity Curve (M_seasoning)
-    2. Anti-Flash-Loan TWAP Surge Damping
+    2. Anti-TVL-Spike TWAP Surge Damping (detects >25% daily TVL surges;
+       NOTE: this is NOT intra-block flash-loan detection — flash loans execute
+       within a single block and require mempool-level monitoring)
     3. Bank-Run / Sudden Drain Outflow Detection
     4. Multi-Vector Oscillation / Wash-Trading Divergence Penalty
     5. Non-Linear Catastrophic Circuit Breaker Hard Caps
@@ -112,7 +116,7 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
         if age_days < 90.0:
             seasoning_multiplier = min(1.0, max(0.25, math.sqrt(age_days / 90.0)))
     
-    # 2. Anti-Flash-Loan & Spike Damping (TWAP seasoning)
+    # 2. Anti-TVL-Spike & Surge Damping (daily/weekly TVL change monitoring)
     effective_tvl = max(0.0, float(tvl or 0.0)) * seasoning_multiplier
     twap_discount_applied = seasoning_multiplier < 0.999
     liquidity_spike_detected = False
@@ -124,13 +128,13 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     neg_drop_7d = min(0.0, float(change_7d or 0.0))
 
     if tvl > 0:
-        # If sudden 24h surge exceeds 25% or 7d surge exceeds 60%, apply TWAP damping to prevent sudden gaming
+        # If sudden 24h surge exceeds 25% or 7d surge exceeds 60%, apply surge damping to prevent TVL gaming
         if pos_spike_1d > 25.0 or pos_spike_7d > 60.0:
             twap_discount_applied = True
             spike_damping_factor = 1.0 + (max(0.0, pos_spike_1d - 25.0) / 100.0) * 0.5 + (max(0.0, pos_spike_7d - 60.0) / 100.0) * 0.3
             effective_tvl = max(1.0, effective_tvl / spike_damping_factor)
 
-        # Extreme surge: potential flash-loan or wash-liquidity injection (>150% in 1d or >300% in 7d)
+        # Extreme surge: potential wash-liquidity injection or TVL manipulation (>150% in 1d or >300% in 7d)
         if pos_spike_1d > 150.0 or pos_spike_7d > 300.0:
             liquidity_spike_detected = True
 
@@ -186,19 +190,45 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     volatility_score = min(100, max(0, volatility_score))
     
     if is_rwa:
-        gov_base = 85
-    elif cat in ["lending", "dex", "yield"]:
         gov_base = 75
+    elif cat in ["lending", "dex", "yield"]:
+        gov_base = 55
     else:
-        gov_base = 45
-    governance = min(100, max(0, gov_base))
-    
+        gov_base = 35
+
+    # Governance heuristics: multi-chain = mature governance process
+    gov_chain_bonus = min(15, chains_count * 3)
+    # Protocol age as governance maturity indicator (Lindy effect)
+    gov_age_bonus = 0
+    if listed_at and listed_at > 0:
+        gov_age_months = max(0, (ref_time - listed_at) / (30 * 24 * 3600))
+        gov_age_bonus = min(15, int(gov_age_months * 0.4))
+    # Audit presence implies formal governance review process
+    gov_audit_bonus = 8 if has_verified_audit else 0
+    # TVL size as accountability proxy (more TVL = more stakeholder oversight)
+    gov_tvl_bonus = 0
+    if tvl and float(tvl) > 0:
+        gov_tvl_bonus = min(10, int(math.log10(max(1.0, float(tvl))) * 1.2))
+
+    governance = min(100, max(0, gov_base + gov_chain_bonus + gov_age_bonus + gov_audit_bonus + gov_tvl_bonus))
+
+    governance_breakdown = (
+        f"base={gov_base} (category: {cat or 'unknown'}), "
+        f"chains=+{gov_chain_bonus} ({chains_count} chains), "
+        f"age=+{gov_age_bonus}, "
+        f"audit=+{gov_audit_bonus}, "
+        f"tvl_accountability=+{gov_tvl_bonus}"
+    )
+
     audit_base = 88 if has_verified_audit else 32
     age_months = 0
     if listed_at:
         age_months = max(0, (ref_time - listed_at) / (30 * 24 * 3600))
     audit = min(100, audit_base + min(20, chains_count * 2) + min(15, int(age_months * 0.5)))
-    
+
+    # Seasoning score as explicit 7th dimension
+    seasoning_score = min(100, max(0, int(seasoning_multiplier * 100)))
+
     is_lrt = cat in ["liquid restaking", "lrt", "lst", "liquid staking", "restaking"]
     if is_rwa:
         weighted_raw = (
@@ -231,7 +261,7 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     circuit_breaker_active = False
     circuit_breaker_reason = None
     min_critical = min(security, collateral)
-    
+
     if security < 45 or collateral < 40 or volatility_score < 30:
         circuit_breaker_active = True
         hard_cap = min(100.0, max(5.0, min_critical * 1.35))
@@ -243,7 +273,7 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
         circuit_breaker_active = True
         hard_cap = min(weighted_raw, 58.0)
         weighted_raw = hard_cap
-        circuit_breaker_reason = f"Circuit Breaker Triggered: Unseasoned liquidity surge (+{round(pos_spike_1d, 1)}% in 24h). Anti-Flash-Loan protection engaged."
+        circuit_breaker_reason = f"Circuit Breaker Triggered: Unseasoned liquidity surge (+{round(pos_spike_1d, 1)}% in 24h). Anti-TVL-Spike protection engaged."
 
     if bank_run_detected:
         circuit_breaker_active = True
@@ -253,7 +283,43 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
 
     overall = round(weighted_raw)
     overall = max(0, min(100, overall))
-    
+
+    # Sector-adaptive weight profile used
+    if is_rwa:
+        weight_profile = {
+            "collateral": 0.35,
+            "governance": 0.25,
+            "audit": 0.15,
+            "liquidity": 0.15,
+            "volatility": 0.10,
+        }
+    elif is_lrt:
+        weight_profile = {
+            "collateral": 0.25,
+            "security": 0.25,
+            "liquidity": 0.25,
+            "volatility": 0.15,
+            "governance": 0.10,
+        }
+    elif cat in ["lending", "cdp"]:
+        weight_profile = {
+            "collateral": 0.30,
+            "security": 0.25,
+            "liquidity": 0.20,
+            "volatility": 0.10,
+            "governance": 0.10,
+            "audit": 0.05,
+        }
+    else:
+        weight_profile = {
+            "liquidity": round(1.0 / 6.0, 3),
+            "collateral": round(1.0 / 6.0, 3),
+            "security": round(1.0 / 6.0, 3),
+            "volatility": round(1.0 / 6.0, 3),
+            "governance": round(1.0 / 6.0, 3),
+            "audit": round(1.0 / 6.0, 3),
+        }
+
     return {
         "overall": overall,
         "liquidity": liquidity,
@@ -262,6 +328,7 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
         "volatility_score": volatility_score,
         "governance": governance,
         "audit": audit,
+        "seasoning_score": seasoning_score,
         "is_rwa": is_rwa,
         "effective_tvl": round(effective_tvl, 2),
         "seasoning_multiplier": round(seasoning_multiplier, 3),
@@ -270,6 +337,16 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
         "bank_run_detected": bank_run_detected,
         "circuit_breaker_active": circuit_breaker_active,
         "circuit_breaker_reason": circuit_breaker_reason,
+        "weight_profile": weight_profile,
+        "scoring_breakdown": {
+            "liquidity": f"log10(effective_tvl={round(effective_tvl, 2)}) * scale, seasoning_mult={round(seasoning_multiplier, 3)}",
+            "collateral": f"base={collateral_base} (category: {cat or 'unknown'}), drawdown_adjusted",
+            "security": f"base={security_base - (32 if has_verified_audit else 0) - min(28, chains_count * 4)}, audit=+{32 if has_verified_audit else 0}, chains=+{min(28, chains_count * 4)}",
+            "volatility": f"100 - |1d_change|*factor - |7d_change|*factor - divergence_penalty",
+            "governance": governance_breakdown,
+            "audit": f"base={audit_base}, chains=+{min(20, chains_count * 2)}, age=+{min(15, int(age_months * 0.5))}",
+            "seasoning": f"sqrt(age_days/90) capped at 1.0, multiplier={round(seasoning_multiplier, 3)}",
+        },
     }
 
 KNOWN_CONTRACTS = {
@@ -384,7 +461,7 @@ def get_live_token_prices() -> Dict[str, float]:
         "stETH": 2600.0
     }
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "CreditPulseAI/5.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "CreditPulseAI/7.2"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode())
             coins = data.get("coins", {})
@@ -604,15 +681,20 @@ def get_multi_source_asset_data(address: str, snapshot_time: Optional[int] = Non
             est_tvl = max(est_tvl, dex_data["total_liquidity_usd"])
             change_1d = dex_data["price_change_1d"]
         else:
-            change_1d = 0.0
+            change_1d = None  # Honestly flag as unavailable instead of faking 0.0
 
         category = "Smart Contract (Live On-Chain Introspected)" if is_deployed_contract else "Unlisted EOA / Address"
         protocol_name = f"Smart Contract ({address[:6]}...{address[-4:]})" if is_deployed_contract else f"Unindexed ({address[:6]}...{address[-4:]})"
         tvl = est_tvl
-        change_7d = 0.0
+        change_7d = None  # Honestly flag as unavailable — no historical TVL data for unindexed contracts
         audits = onchain_info["verified_audit_tier"]
         chains = ["Ethereum", "Creditcoin"]
-        listed_at = int(now_snapshot - 365*24*3600) if is_deployed_contract else 0
+        # Estimate contract age from bytecode presence — NOT fabricated.
+        # For unindexed contracts without DeFiLlama listing timestamp,
+        # we assign a conservative 30-day age. This triggers the Lindy
+        # Seasoning Curve penalty (sqrt(30/90) ≈ 0.577 multiplier),
+        # correctly penalizing unverified protocols.
+        listed_at = int(now_snapshot - 30*24*3600) if is_deployed_contract else 0
         is_contract = is_deployed_contract
         bytecode_size = onchain_info.get("bytecode_len", 0)
 

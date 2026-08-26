@@ -1,4 +1,4 @@
-# CreditPulse AI Engine — Autonomous RWA Risk Assessment & Credit Scoring (v7.0.0 Enterprise)
+# CreditPulse AI Engine — Autonomous RWA Risk Assessment & Credit Scoring (v7.2.0 Enterprise)
 from __future__ import annotations
 import json
 import logging
@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -34,6 +34,9 @@ from risk_engine import (
     fetch_dexscreener_token_data
 )
 from zktls.verifier import ZkTLSEngine
+from quant_risk import QuantRiskEngine
+from nodes.bls_quorum import BLSQuorumEngine
+from cross_chain_relayer import CrossChainRelayer
 
 load_dotenv()
 
@@ -133,7 +136,7 @@ def generate_risk_narrative(
 
 app = FastAPI(
     title='CreditPulse AI Engine',
-    version='7.0.0',
+    version='7.2.0',
     description='Autonomous RWA Risk Assessment & Credit Scoring Infrastructure on Creditcoin',
     docs_url='/docs',
     redoc_url='/redoc'
@@ -247,6 +250,16 @@ def startup_event():
     threading.Thread(target=get_protocols_cached, daemon=True).start()
     threading.Thread(target=_warmup_cache, daemon=True).start()
 
+    # Start autonomous keeper background scheduler
+    if KEEPER_ENABLED:
+        # Delay first cycle by 30 seconds to allow cache warmup
+        _initial_timer = threading.Timer(30.0, _start_keeper_scheduler)
+        _initial_timer.daemon = True
+        _initial_timer.start()
+        logger.info(f"Autonomous Keeper scheduled (first cycle in 30s, then every {HEARTBEAT_CADENCE_SEC}s)")
+    else:
+        logger.info("Autonomous Keeper disabled (set KEEPER_ENABLED=true to enable)")
+
 async def verify_api_key(x_api_key: str = Header(default=None)):
     """Verify the provided API key against the environment variable."""
     expected = os.getenv('API_KEY')
@@ -256,7 +269,8 @@ async def verify_api_key(x_api_key: str = Header(default=None)):
 class AnalyzeRequest(BaseModel):
     address: str
 
-    @validator('address')
+    @field_validator('address')
+    @classmethod
     def validate_address(cls, v):
         if len(v) != 42:
             raise ValueError('Address must be exactly 42 characters')
@@ -280,7 +294,7 @@ class AnalyzeResponse(BaseModel):
     unverified: bool
     response_time_ms: float
     request_id: str
-    formula_version: str = "6.0"
+    formula_version: str = "7.2"
     circuit_breaker_active: bool = False
     circuit_breaker_reason: Optional[str] = None
     raw_inputs: dict = {}
@@ -306,7 +320,7 @@ def health():
         "status": "healthy",
         "timestamp": int(time.time()),
         "uptime_seconds": int(time.time() - SERVER_START_TIME),
-        "version": "5.0.0"
+        "version": "7.2.0"
     }
 
 @app.get("/api/stats", tags=['System'])
@@ -317,7 +331,7 @@ def api_stats():
             "total_analyses": STATS['total_analyses'],
             "total_records": STATS['total_records'],
             "uptime_seconds": int(time.time() - SERVER_START_TIME),
-            "version": "5.0.0"
+            "version": "7.2.0"
         }
 
 @app.post("/api/analyze", tags=['Analysis'], response_model=AnalyzeResponse)
@@ -447,6 +461,17 @@ def process_analysis(address: str):
             "data_source": " + ".join(asset_data.get("sources_used", [])),
             "snapshot_timestamp": int(time.time()),
         },
+        # Honest AI and scoring labeling
+        "scoring_engine": "deterministic_mathematical",
+        "ai_role": "qualitative_advisory_only",
+        "ai_note": (
+            "The credit score is 100% deterministic — computed by a mathematical engine "
+            "with sector-adaptive weights, circuit breakers, and Lindy seasoning curves. "
+            "Gemini AI provides qualitative narrative commentary only and does NOT influence the score."
+        ),
+        "weight_profile": scores.get("weight_profile", {}),
+        "scoring_breakdown": scores.get("scoring_breakdown", {}),
+        "seasoning_score": scores.get("seasoning_score", 100),
     }
     return response
 
@@ -486,7 +511,8 @@ class RecordRequest(BaseModel):
     verify_crosschain: bool = False
     source_tx_hash: str = None
 
-    @validator('address')
+    @field_validator('address')
+    @classmethod
     def validate_address(cls, v):
         if len(v) != 42:
             raise ValueError('Address must be exactly 42 characters')
@@ -494,7 +520,8 @@ class RecordRequest(BaseModel):
             raise ValueError('Invalid Ethereum address')
         return v
         
-    @validator('score', 'liquidity', 'collateral', 'audit', 'security', 'volatility', 'governance')
+    @field_validator('score', 'liquidity', 'collateral', 'audit', 'security', 'volatility', 'governance')
+    @classmethod
     def check_bounds(cls, v):
         if not (0 <= v <= 100):
             raise ValueError('Value must be between 0 and 100')
@@ -655,7 +682,12 @@ def process_record_don(req: RecordRequest):
         logger.error(f"DON Recording failed: {e}")
         # Fallback to standard relayer transaction if multi-signed fails on legacy contract
         try:
-            return process_record(req)
+            fallback_result = process_record(req)
+            fallback_result["degraded_to_single_signer"] = True
+            fallback_result["don_error"] = str(e)[:100]
+            fallback_result["status"] = "Submitted to Creditcoin CC3 (Degraded: Single-Signer Fallback)"
+            logger.warning(f"DON degraded to single-signer for {req.address}: {e}")
+            return fallback_result
         except Exception:
             raise HTTPException(status_code=500, detail=f"DON Recording failed: {str(e)}")
 
@@ -847,14 +879,16 @@ class MultiSignRequest(BaseModel):
     ai_digest: Optional[str] = "0x" + "0"*64
     quorum: Optional[int] = 2
     snapshot_time: Optional[int] = None
-    snapshot_time: Optional[int] = None
 
-@app.post("/api/multi-sign", tags=['Signing'])
+@app.post("/api/multi-sign", tags=['Signing'], deprecated=True)
 @limiter.limit("20/minute")
 def api_multi_sign(request: Request, req: MultiSignRequest):
     """
-    Generate threshold signatures from multiple independent oracle nodes (DON consensus).
-    Signers are deterministically sorted in ascending order to satisfy smart contract validation.
+    ⚠️ DEPRECATED: Use /api/don/consensus for production multi-oracle signing.
+
+    This legacy endpoint derives the second signer key from the primary key,
+    which does not provide true independent oracle verification.
+    It is retained for backward compatibility and local testing only.
     """
     if not req.data_hash or not req.data_hash.startswith("0x") or len(req.data_hash) != 66:
         raise HTTPException(status_code=400, detail="data_hash is required and must be a valid 32-byte hex string")
@@ -901,7 +935,13 @@ def api_multi_sign(request: Request, req: MultiSignRequest):
             "signatures": [n[1] for n in nodes],
             "message_hash": "0x" + message_hash.hex(),
             "contract_address": CONTRACT_ADDRESS,
-            "chain_id": 102031
+            "chain_id": 102031,
+            "_deprecated": True,
+            "_deprecation_notice": (
+                "This endpoint derives key #2 from key #1 and does NOT provide "
+                "independent oracle verification. Use POST /api/don/consensus "
+                "for production multi-node DON signing with physically independent nodes."
+            ),
         }
     except Exception as e:
         logger.error(f"Multi-Oracle signing failed: {e}")
@@ -943,10 +983,10 @@ class ZkTLSRARequest(BaseModel):
     spv_cik: Optional[str] = "CIK-0001982741"
     account_id_masked: Optional[str] = "US-BNK-****-8821"
 
-@app.post("/api/zktls/attest-reserve", tags=['zkTLS Proof-of-Reserve'])
+@app.post("/api/zktls/attest-reserve", tags=['Cryptographic Proof-of-Reserve'])
 def api_zktls_attest(req: ZkTLSRARequest):
     """
-    Generate verifiable cryptographic zkTLS session commitment and redacted bank reserve proof.
+    Generate verifiable Keccak256 hash commitment and redacted bank reserve proof.
     Now uses the physically decentralized DON for quorum multi-signatures.
     """
     snapshot_time = int(time.time())
@@ -970,7 +1010,8 @@ def api_zktls_attest(req: ZkTLSRARequest):
         "account_id_masked": req.account_id_masked or "US-BNK-****-8821",
         "snapshot_time": snapshot_time,
         "zk_tls_proof_hash": proposed_attestation["zk_tls_proof_hash"],
-        "session_commitment": proposed_attestation["session_commitment"]
+        "session_commitment": proposed_attestation["session_commitment"],
+        "blinding_factor": proposed_attestation["blinding_factor"],
     }
 
     don = DONCoordinator()
@@ -978,43 +1019,58 @@ def api_zktls_attest(req: ZkTLSRARequest):
         consensus_result = don.gather_zktls_consensus(payload=payload, min_quorum=2)
         
         if PRIVATE_KEY and CONTRACT_ADDRESS:
-            w3 = Web3(Web3.HTTPProvider(RPC_URL))
-            account = w3.eth.account.from_key(PRIVATE_KEY)
-            contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
-            
-            asset_addr_chk = Web3.to_checksum_address(req.asset_address)
-            reserve_ratio_bps = int((req.reserve_balance_usd / req.token_supply_usd) * 10000)
-            
-            proof_hash = bytes.fromhex(payload["zk_tls_proof_hash"][2:])
-            custodian_key_hash = Web3.keccak(text=req.custodian_name or "Ankura Trust & Morgan Stanley")
-            session_commitment = bytes.fromhex(payload["session_commitment"][2:])
-            
-            tx = contract.functions.saveRWAZkTLSCertificate(
-                asset_addr_chk,
-                100,
-                reserve_ratio_bps,
-                proof_hash,
-                custodian_key_hash,
-                session_commitment
-            ).build_transaction({
-                'from': account.address,
-                'nonce': w3.eth.get_transaction_count(account.address),
-                'gas': 600000,
-                'gasPrice': w3.eth.gas_price,
-                'chainId': w3.eth.chain_id
+            try:
+                w3 = Web3(Web3.HTTPProvider(RPC_URL))
+                account = w3.eth.account.from_key(PRIVATE_KEY)
+                contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
+                
+                asset_addr_chk = Web3.to_checksum_address(req.asset_address)
+                reserve_ratio_bps = int((req.reserve_balance_usd / req.token_supply_usd) * 10000)
+                
+                proof_hash = bytes.fromhex(payload["zk_tls_proof_hash"][2:])
+                custodian_key_hash = Web3.keccak(text=req.custodian_name or "Ankura Trust & Morgan Stanley")
+                session_commitment = bytes.fromhex(payload["session_commitment"][2:])
+                
+                tx = contract.functions.saveRWAZkTLSCertificate(
+                    asset_addr_chk,
+                    100,
+                    reserve_ratio_bps,
+                    proof_hash,
+                    custodian_key_hash,
+                    session_commitment
+                ).build_transaction({
+                    'from': account.address,
+                    'nonce': w3.eth.get_transaction_count(account.address),
+                    'gas': 600000,
+                    'gasPrice': w3.eth.gas_price,
+                    'chainId': w3.eth.chain_id
+                })
+
+                signed = account.sign_transaction(tx)
+                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                raw_hex = tx_hash.hex()
+                formatted_tx_hash = raw_hex if raw_hex.startswith("0x") else ("0x" + raw_hex)
+
+                consensus_result["txHash"] = formatted_tx_hash
+                consensus_result["status"] = "PoR Certificate Submitted to Chain"
+            except Exception as chain_err:
+                logger.warning(f"On-chain PoR recording skipped (EVM unavailable): {chain_err}")
+                consensus_result["status"] = "PoR Verified (on-chain recording unavailable)"
+        # Merge gateway's proposed attestation proof artifacts into the DON consensus result
+        # so the API response includes the full cryptographic proof chain.
+        if "verification_details" in consensus_result:
+            consensus_result["verification_details"].update({
+                "session_commitment": proposed_attestation["session_commitment"],
+                "zk_tls_proof_hash": proposed_attestation["zk_tls_proof_hash"],
+                "custodian_key_hash": proposed_attestation["custodian_key_hash"],
+                "tls_standard": proposed_attestation["tls_standard"],
+                "proof_type": proposed_attestation["proof_type"],
+                "production_upgrade_path": proposed_attestation.get("production_upgrade_path", ""),
             })
 
-            signed = account.sign_transaction(tx)
-            tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-            raw_hex = tx_hash.hex()
-            formatted_tx_hash = raw_hex if raw_hex.startswith("0x") else ("0x" + raw_hex)
-
-            consensus_result["txHash"] = formatted_tx_hash
-            consensus_result["status"] = "zkTLS Certificate Submitted to Chain"
-            
         return consensus_result
     except Exception as e:
-        logger.error(f"zkTLS attest failed: {e}")
+        logger.error(f"PoR attest failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 class PoRVerifyRequest(BaseModel):
@@ -1054,7 +1110,7 @@ def api_por_verify(req: PoRVerifyRequest):
         "legal_entity_digest": legal_entity_digest,
         "custodian": req.custodian_name,
         "spv_registration": req.spv_cik,
-        "attestation_standard": "CreditPulse RWA PoR Standard v7.0"
+        "attestation_standard": "CreditPulse RWA PoR Standard v7.2"
     }
 
 class VerifyRequest(BaseModel):
@@ -1102,7 +1158,7 @@ def api_verify(req: VerifyRequest):
             "audit": scores["audit"],
         },
         "data_hash": data_hash,
-        "formula_version": "7.0",
+        "formula_version": "7.2",
         "circuit_breaker_active": scores.get("circuit_breaker_active", False),
         "circuit_breaker_reason": scores.get("circuit_breaker_reason"),
         "canonical_json": raw_data_string,
@@ -1114,10 +1170,10 @@ def api_verify(req: VerifyRequest):
 def api_methodology():
     """Retrieve full formal specification of the 7-dimensional institutional scoring methodology."""
     return {
-        "version": "7.0.0",
+        "version": "7.2.0",
         "network": "Creditcoin Testnet (CC3)",
         "smart_contract": CONTRACT_ADDRESS,
-        "architecture": "Federated Multi-Node DON Cluster + Cryptographic zkTLS Proof-of-Reserve + Optimistic Dispute Window",
+        "architecture": "Federated Multi-Node DON Cluster + Cryptographic Proof-of-Reserve Commitments + Optimistic Dispute Window",
         "dimensions": [
             {"name": "Liquidity", "weight": "Sector-Adaptive (15-25%)", "formula": "min(100, max(0, int(log10(tvl) * 10.0)))"},
             {"name": "Collateral & Solvency", "weight": "Sector-Adaptive (25-35%)", "formula": "Category baseline [RWA:92, Lending:85, LRT:82, DEX:68] minus drawdown penalty"},
@@ -1306,9 +1362,11 @@ def attestcoin_verify(req: AttestcoinVerifyRequest):
 DRIFT_THRESHOLD_PTS = 5.0
 HEARTBEAT_CADENCE_SEC = 86400  # 24 hours
 KEEPER_CYCLE_LOCK = threading.Lock()
+KEEPER_ENABLED = os.getenv("KEEPER_ENABLED", "true").lower() in ("true", "1", "yes")
+_keeper_timer: Optional[threading.Timer] = None
 
 AUTONOMOUS_STATE = {
-    "is_running": True,
+    "is_running": KEEPER_ENABLED,
     "last_cycle_timestamp": 0,
     "total_autonomous_cycles": 0,
     "total_onchain_updates_triggered": 0,
@@ -1323,6 +1381,28 @@ AUTONOMOUS_STATE = {
     ],
     "recent_logs": []
 }
+
+def _start_keeper_scheduler():
+    """Start the background keeper timer. Re-schedules itself after each cycle."""
+    global _keeper_timer
+    if not AUTONOMOUS_STATE["is_running"]:
+        return
+    try:
+        execute_autonomous_cycle()
+    except Exception as e:
+        logger.error(f"Autonomous keeper cycle failed: {e}")
+    # Re-schedule next cycle
+    _keeper_timer = threading.Timer(HEARTBEAT_CADENCE_SEC, _start_keeper_scheduler)
+    _keeper_timer.daemon = True
+    _keeper_timer.start()
+    logger.info(f"Keeper scheduled next cycle in {HEARTBEAT_CADENCE_SEC}s")
+
+def _stop_keeper_scheduler():
+    """Cancel the background keeper timer."""
+    global _keeper_timer
+    if _keeper_timer:
+        _keeper_timer.cancel()
+        _keeper_timer = None
 
 def execute_autonomous_cycle(force_broadcast: bool = False):
     """
@@ -1480,9 +1560,19 @@ def execute_autonomous_cycle(force_broadcast: bool = False):
 @app.get("/api/autonomous/status", tags=['Autonomous'])
 def get_autonomous_status():
     """Check status of background autonomous risk evaluator and drift metrics."""
+    last_ts = AUTONOMOUS_STATE["last_cycle_timestamp"]
+    if AUTONOMOUS_STATE["is_running"] and last_ts > 0:
+        next_cycle_in = max(0, int(HEARTBEAT_CADENCE_SEC - (time.time() - last_ts)))
+    elif AUTONOMOUS_STATE["is_running"]:
+        next_cycle_in = 30  # Initial warmup delay
+    else:
+        next_cycle_in = None
+
     return {
         "status": "ACTIVE" if AUTONOMOUS_STATE["is_running"] else "PAUSED",
-        "last_cycle": int(AUTONOMOUS_STATE["last_cycle_timestamp"]),
+        "scheduler": "threading.Timer (daemon)" if AUTONOMOUS_STATE["is_running"] else "STOPPED",
+        "last_cycle": int(last_ts),
+        "next_cycle_in_seconds": next_cycle_in,
         "total_cycles": AUTONOMOUS_STATE["total_autonomous_cycles"],
         "total_onchain_updates_triggered": AUTONOMOUS_STATE["total_onchain_updates_triggered"],
         "drift_threshold_pts": AUTONOMOUS_STATE["drift_threshold_pts"],
@@ -1508,4 +1598,114 @@ def trigger_autonomous_cycle(request: Request = None):
 def toggle_autonomous_keeper(active: bool):
     """Pause or resume the autonomous background keeper daemon."""
     AUTONOMOUS_STATE["is_running"] = active
+    if active:
+        _start_keeper_scheduler()
+    else:
+        _stop_keeper_scheduler()
     return {"status": "ACTIVE" if active else "PAUSED", "is_running": active}
+
+# --- Institutional Quantitative Risk & Stress-Testing API ---
+
+class MonteCarloRequest(BaseModel):
+    tvl_usd: float
+    score: float
+    iterations: Optional[int] = 10000
+    time_horizon_days: Optional[int] = 30
+    daily_volatility: Optional[float] = 0.04
+
+@app.post("/api/quant/monte-carlo", tags=['Quantitative Risk'])
+def api_quant_monte_carlo(req: MonteCarloRequest):
+    """
+    Execute a 10,000-path Monte Carlo jump-diffusion simulation to calculate
+    VaR (Value at Risk 95/99), CVaR (Expected Shortfall), and tail-risk insolvency probabilities.
+    """
+    return QuantRiskEngine.run_monte_carlo(
+        tvl_usd=req.tvl_usd,
+        score=req.score,
+        iterations=req.iterations or 10000,
+        time_horizon_days=req.time_horizon_days or 30,
+        daily_volatility=req.daily_volatility or 0.04
+    )
+
+class StressTestRequest(BaseModel):
+    tvl_usd: float
+    score: float
+    scenario: Optional[str] = "black_thursday_2020"
+
+@app.post("/api/quant/stress-test", tags=['Quantitative Risk'])
+def api_quant_stress_test(req: StressTestRequest):
+    """
+    Simulate historical financial crisis scenarios (Black Thursday 2020, Terra/LUNA 2022, SVB Depeg 2023).
+    """
+    return QuantRiskEngine.run_historical_stress_test(
+        tvl_usd=req.tvl_usd,
+        score=req.score,
+        scenario_key=req.scenario or "black_thursday_2020"
+    )
+
+# --- BLS12-381 Quorum & P2P Gossip Telemetry API ---
+
+class BLSAggregationRequest(BaseModel):
+    message_hash: str
+    signatures: List[Dict[str, Any]]
+
+@app.post("/api/don/bls-aggregate", tags=['DON Consensus'])
+def api_don_bls_aggregate(req: BLSAggregationRequest):
+    """
+    Aggregate M-of-N validator signatures into a single compact BLS12-381 proof.
+    """
+    try:
+        return BLSQuorumEngine.aggregate_signatures(
+            message_hash=req.message_hash,
+            node_signatures=req.signatures
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/don/p2p-telemetry", tags=['DON Consensus'])
+def api_don_p2p_telemetry():
+    """
+    Retrieve live P2P mesh cluster topology with real latency measurements.
+    Performs actual HTTP healthchecks against all validator node endpoints.
+    """
+    # Collect real latencies from DON coordinator healthcheck
+    try:
+        cluster_status = don_coordinator.get_cluster_status()
+        live_latencies = {}
+        for node in cluster_status.get("nodes", []):
+            node_id = node.get("node_id", "")
+            latency = node.get("latency_ms", -1.0)
+            if node_id:
+                live_latencies[node_id] = latency
+    except Exception:
+        live_latencies = None
+
+    return BLSQuorumEngine.get_p2p_network_telemetry(live_latencies=live_latencies)
+
+# --- Cross-Chain Multi-Network Relayer API ---
+
+class CrossChainRelayRequest(BaseModel):
+    target_chain_id: int
+    asset_address: str
+    score: int
+    dynamic_ltv: int
+    risk_tier: str
+    data_hash: str
+    cc3_tx_hash: str
+
+@app.post("/api/cross-chain/relay", tags=['Cross-Chain'])
+def api_cross_chain_relay(req: CrossChainRelayRequest):
+    """
+    ABI-encode a cross-chain credit score relay packet for EIP-5164 / LayerZero delivery.
+    Returns encoded calldata ready for bridge contract submission.
+    """
+    return CrossChainRelayer.encode_cross_chain_payload(
+        target_chain_id=req.target_chain_id,
+        asset_address=req.asset_address,
+        score=req.score,
+        dynamic_ltv=req.dynamic_ltv,
+        risk_tier=req.risk_tier,
+        data_hash=req.data_hash,
+        cc3_tx_hash=req.cc3_tx_hash
+    )
+

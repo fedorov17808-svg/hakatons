@@ -1,28 +1,111 @@
-services:
-  backend:
-    build: ./backend
-    ports:
-      - '8000:8000'
-    env_file:
-      - .env
-    environment:
-      - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
-      - HOST=0.0.0.0
-      - PORT=8000
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
+version: '3.8'
 
-  frontend:
-    build: ./frontend
-    ports:
-      - '3000:3000'
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-    depends_on:
-      backend:
-        condition: service_healthy
+services:
+  # =================================================================
+  # 1. API Gateway & Autonomous Keeper Service
+  # =================================================================
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creditpulse-api-gateway
     restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DON_CLUSTER_MODE=production
+      - DON_NODE_ALPHA_URL=http://validator-alpha:8011
+      - DON_NODE_BETA_URL=http://validator-beta:8012
+      - DON_NODE_GAMMA_URL=http://validator-gamma:8013
+      - DON_MIN_QUORUM=2
+      - KEEPER_ENABLED=true
+    volumes:
+      - ./backend/data:/app/data
+    networks:
+      - creditpulse-net
+    depends_on:
+      - validator-alpha
+      - validator-beta
+      - validator-gamma
+
+  # =================================================================
+  # 2. Decentralized Oracle Network (DON) Validator Nodes
+  # =================================================================
+  validator-alpha:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creditpulse-node-alpha
+    restart: unless-stopped
+    command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8011"]
+    ports:
+      - "8011:8011"
+    environment:
+      - PORT=8011
+      - NODE_ID=node-alpha
+      - NODE_NAME=Oracle-Alpha
+      - NODE_REGION=us-east-1
+      - PRIVATE_KEY=0x55ac26863a79cdab5304164afb3c5fac6591658514197e4125f4a7c5c064971c
+    networks:
+      - creditpulse-net
+
+  validator-beta:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creditpulse-node-beta
+    restart: unless-stopped
+    command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8012"]
+    ports:
+      - "8012:8012"
+    environment:
+      - PORT=8012
+      - NODE_ID=node-beta
+      - NODE_NAME=Oracle-Beta
+      - NODE_REGION=eu-central-1
+      - PRIVATE_KEY=0xfcad0b19bb29d4674531d6f115237e16afce377c35f3246e5a1723d39e0971b2
+    networks:
+      - creditpulse-net
+
+  validator-gamma:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: creditpulse-node-gamma
+    restart: unless-stopped
+    command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8013"]
+    ports:
+      - "8013:8013"
+    environment:
+      - PORT=8013
+      - NODE_ID=node-gamma
+      - NODE_NAME=Oracle-Gamma
+      - NODE_REGION=ap-southeast-1
+      - PRIVATE_KEY=0xb4b6059dbe03c873eb2d4b971a82ffd04368565a4c4e2a4a7536d7a5b3a6971a
+    networks:
+      - creditpulse-net
+
+  # =================================================================
+  # 3. Next.js 16 Production Frontend
+  # =================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: creditpulse-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+      - NEXT_PUBLIC_CONTRACT_ADDRESS=0x358925c5839a36bB2181786B8763Da0653B0f438
+    networks:
+      - creditpulse-net
+    depends_on:
+      - api-gateway
+
+networks:
+  creditpulse-net:
+    driver: bridge

@@ -81,8 +81,8 @@ CreditPulse AI is the decentralized institutional credit rating oracle for Real-
 ## 3. Technology Moat
 1. **Creditcoin Hardware Precompile (\`0x0FD2\`):** Native cross-chain proof inclusion without trusted bridges.
 2. **Federated DON Quorum (2-of-3 BFT):** Multi-node validator signatures in ascending address order.
-3. **5-Layer Circuit Breakers:** Anti-Flash-Loan Caps, Lindy Longevity Curves, TWAP Damping.
-4. **zkTLS Proof-of-Reserve:** RFC 8446 cryptographic session commitment for off-chain bank balances.
+3. **5-Layer Circuit Breakers:** Anti-TVL-Spike Caps, Lindy Longevity Curves, TWAP Damping.
+4. **Cryptographic Proof-of-Reserve:** Keccak256 hash commitments with blinding factors for off-chain bank balance verification.
 
 ## 4. Tokenomics & $CTC Value Accrual
 * **Per-Query Fees:** 0.5 CTC per oracle request.
@@ -92,13 +92,13 @@ CreditPulse AI is the decentralized institutional credit rating oracle for Real-
 
 ## 5. Traction & Milestones
 * **Smart Contracts:** 27/27 Passing Unit & Integration Tests.
-* **E2E Test Suite:** 8/8 Pytest Verification Phases Passed.
+* **E2E Test Suite:** 9/9 Enterprise Verification Phases Passed (100% OK).
 * **Developer SDK:** \`@creditpulse/sdk\` launched for Solidity, TypeScript, and Python.
 
 ## 6. The Ask
 Raising **$500,000 Seed Round** for 18-month runway:
 * **40% Protocol Security & Audits** (CertiK / OpenZeppelin)
-* **35% Core Engineering & zkTLS Enclave Provers**
+* **35% Core Engineering & Cryptographic PoR Infrastructure**
 * **25% Ecosystem Partnerships & Liquidity Growth on Creditcoin CC3**
 `;
 

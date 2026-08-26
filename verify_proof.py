@@ -2,24 +2,31 @@
 """Call the Creditcoin precompile 0x0FD2 directly with a real proof."""
 import json, os, sys
 
-# Add backend to path for web3
-sys.path.insert(0, '/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(BASE_DIR, 'backend'))
 
 from web3 import Web3
 
 # Load proof data
-proof = json.load(open('/Users/stepchik/.gemini/antigravity/scratch/hakatons/proof_data.json'))
+proof_path = os.path.join(BASE_DIR, 'proof_data.json')
+proof = json.load(open(proof_path))
 
 # Connect to CC3 testnet
-RPC = "https://rpc.cc3-testnet.creditcoin.network"
+RPC = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
 w3 = Web3(Web3.HTTPProvider(RPC))
 print(f"Connected to CC3: {w3.is_connected()}, block: {w3.eth.block_number}")
 
 # Load private key
-for line in open('/Users/stepchik/.gemini/antigravity/scratch/hakatons/backend/.env'):
-    if line.startswith('PRIVATE_KEY='):
-        PK = line.strip().split('=',1)[1].strip('"').strip("'")
-        break
+PK = os.getenv("PRIVATE_KEY", "")
+env_path = os.path.join(BASE_DIR, 'backend', '.env')
+if not PK and os.path.exists(env_path):
+    for line in open(env_path):
+        if line.startswith('PRIVATE_KEY='):
+            PK = line.strip().split('=', 1)[1].strip('"').strip("'")
+            break
+
+if not PK:
+    PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 account = w3.eth.account.from_key(PK)
 print(f"Account: {account.address}")

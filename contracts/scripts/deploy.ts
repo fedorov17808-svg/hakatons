@@ -2,7 +2,7 @@ import { ethers } from "hardhat";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  console.log(`Deploying CreditPulseASC v7.0.0 with deployer: ${deployer.address}`);
+  console.log(`Deploying CreditPulseASC v7.2.0 with deployer: ${deployer.address}`);
 
   const blockProver = "0x0000000000000000000000000000000000000FD2";
   const oracleSigner = deployer.address;
@@ -12,7 +12,7 @@ async function main() {
 
   await contract.waitForDeployment();
   const contractAddress = await contract.getAddress();
-  console.log(`✅ CreditPulseASC v7.0.0 deployed to: ${contractAddress}`);
+  console.log(`✅ CreditPulseASC v7.2.0 deployed to: ${contractAddress}`);
 
   // Register and authorize the 3 DON validator nodes
   const donNodes = [

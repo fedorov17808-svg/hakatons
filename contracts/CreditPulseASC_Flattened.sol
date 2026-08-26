@@ -7,7 +7,7 @@
 // Original license: SPDX_License_Identifier: MIT
 pragma solidity 0.8.20;
 
-/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.0.0 Enterprise Grade
+/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.2.0 Enterprise Grade
 /// @author CreditPulse AI Team
 /// @notice Decentralized credit scoring, Federated Multi-Oracle DON Quorum, Optimistic Dispute Window, Staking/Slashing, and zkTLS Proof-of-Reserve (PoR)
 /// @dev Integrates with Creditcoin Native Query Verifier Precompile (0x0FD2) for trustless cross-chain proof verification
@@ -38,7 +38,7 @@ interface IBlockProver {
 }
 
 contract CreditPulseASC {
-    string public constant VERSION = "7.0.0";
+    string public constant VERSION = "7.2.0";
     bytes32 public constant EIP712_DOMAIN_TYPEHASH = keccak256(
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
     );
@@ -769,7 +769,11 @@ contract CreditPulseASC {
             v := byte(0, mload(add(_sig, 96)))
         }
         if (v < 27) v += 27;
-        return ecrecover(_ethSignedMessageHash, v, r, s);
+        require(v == 27 || v == 28, "Invalid signature 'v' value");
+        require(uint256(s) <= 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0, "Invalid signature 's' value");
+        address signer = ecrecover(_ethSignedMessageHash, v, r, s);
+        require(signer != address(0), "Invalid signature recovery");
+        return signer;
     }
 
     function verifyDataIntegrity(address _assetAddress, bytes32 _expectedDataHash) external view returns (bool) {

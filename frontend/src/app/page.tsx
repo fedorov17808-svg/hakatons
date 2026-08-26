@@ -54,6 +54,7 @@ interface RWAAttestationData {
   session_commitment?: string;
   custodian_key_hash?: string;
   tls_standard?: string;
+  proof_type?: string;
 }
 
 interface DONNodeItem {
@@ -349,7 +350,7 @@ export default function Home() {
 
   const exportInstitutionalReport = () => {
     if (!result) return;
-    const reportMd = `# 📑 CreditPulse AI — Institutional Due Diligence Report v7.0.0 Enterprise
+    const reportMd = `# 📑 CreditPulse AI — Institutional Due Diligence Report v7.2.0 Enterprise
 **Asset / Protocol:** ${result.protocol_name || "Smart Contract"}
 **Contract Address:** \`${address || presets[0].address}\`
 **Category:** ${result.rwa_type}
@@ -361,7 +362,7 @@ export default function Home() {
 ## 🏆 Overall Credit Rating
 - **Credit Score:** **${result.score}/100** (${getScoreText(result.score || 0)})
 - **Institutional Verdict:** ${result.verdict}
-- **Deterministic Engine:** v7.0.0 (Federated Multi-Node DON + zkTLS Reserve Proofs)
+- **Deterministic Engine:** v7.2.0 (Federated Multi-Node DON + Cryptographic PoR Commitments)
 - **Circuit Breaker Status:** ${result.circuit_breaker_active ? `⚠️ CLAMPED (${result.circuit_breaker_reason})` : '✅ NORMAL (No Bottlenecks)'}
 
 ---
@@ -376,12 +377,13 @@ export default function Home() {
 
 ---
 
-## 🛡️ Federated DON Cluster & Cryptographic zkTLS
-- **DON Node Quorum:** 3 Active Independent Validators (AWS us-east-1, GCP europe-west3, BareMetal tokyo-1)
+## 🛡️ Federated DON Cluster & Cryptographic Proof-of-Reserve
+- **DON Node Quorum:** 3 Active Independent Validators (env-configurable endpoints)
 - **Proof-of-Reserve Backing:** ${rwaPoRData ? `${rwaPoRData.coverage_percent}% (${rwaPoRData.status})` : 'Verified on DeFi/EVM balance feeds'}
-- **zkTLS Session Commitment:** \`${rwaPoRData?.session_commitment || '0x...'}\`
+- **PoR Session Commitment:** \`${rwaPoRData?.session_commitment || '0x...'}\`
 - **Custodian Bank Public Key Hash:** \`${rwaPoRData?.custodian_key_hash || '0x...'}\`
-- **TLS Standard:** \`${rwaPoRData?.tls_standard || 'TLSNotary v0.1.0-alpha / zkTLS RFC 8446'}\`
+- **Proof Type:** \`${rwaPoRData?.proof_type || 'PEDERSEN_HASH_COMMITMENT'}\`
+- **TLS Standard:** \`${rwaPoRData?.tls_standard || 'RFC 8446 (TLS 1.3) — Simulated Session Transcript'}\`
 
 ---
 
@@ -541,14 +543,14 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
     }
   };
 
-  const recordZkTLSCertificate = async () => {
+  const recordPoRCertificate = async () => {
     if (!result || !rwaPoRData) return;
     if (!(window as any).ethereum) {
       setTxStatus("❌ Web3 wallet not found. Please install MetaMask.");
       return;
     }
     setTxStep(1);
-    setTxStatus("Step 1/2: Preparing zkTLS Proof-of-Reserve Certificate for CC3...");
+    setTxStatus("Step 1/2: Preparing Proof-of-Reserve Certificate for CC3...");
 
     try {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
@@ -565,17 +567,17 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
       );
 
       setTxHash(tx.hash);
-      setTxStatus("Step 2/2: Confirming zkTLS Certificate on-chain (~5-15s)...");
+      setTxStatus("Step 2/2: Confirming PoR Certificate on-chain (~5-15s)...");
       await tx.wait();
 
       setTxStep(3);
-      setTxStatus("✅ zkTLS Proof-of-Reserve Certificate minted on Creditcoin CC3!");
+      setTxStatus("✅ Proof-of-Reserve Certificate minted on Creditcoin CC3!");
       playSuccessSound();
       fetchOnChainHistory(address || presets[0].address);
     } catch (err: unknown) {
       setTxStep(0);
       const e = err as Error;
-      setTxStatus("❌ " + (e?.message || "Could not record zkTLS certificate."));
+      setTxStatus("❌ " + (e?.message || "Could not record PoR certificate."));
     }
   };
 
@@ -673,7 +675,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
           <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Federated DON Cluster ({donNodes.length > 0 ? `${donNodes.length} Nodes` : '3 Nodes'}) · zkTLS Reserve Proofs
+              Federated DON Cluster ({donNodes.length > 0 ? `${donNodes.length} Nodes` : '3 Nodes'}) · Cryptographic PoR Commitments
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-indigo-950/60 border border-indigo-500/30 text-indigo-300">
               Creditcoin CC3 (Chain ID 102031)
@@ -683,7 +685,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
             Enterprise RWA<br className="hidden md:block"/> Credit Intelligence
           </h2>
           <p className="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
-            Decentralized credit scoring, zkTLS bank reserve verification, and optimistic dispute finality on Creditcoin.
+            Decentralized credit scoring, cryptographic reserve verification, and optimistic dispute finality on Creditcoin.
           </p>
         </div>
 
@@ -835,29 +837,89 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
             {/* AI Verdict */}
             <div className={`${getVerdictStyle(result.verdict).box} border rounded-xl p-4`}>
               <span className={`text-xs font-semibold ${getVerdictStyle(result.verdict).text} uppercase tracking-wider block mb-1`}>
-                🤖 Autonomous Agent Verdict
+                🤖 Autonomous Agent Verdict {result.ai_role && <span className="text-slate-500 normal-case font-normal ml-2">({result.ai_role})</span>}
               </span>
               <p className="text-sm text-slate-300 leading-relaxed">{result.verdict}</p>
+              {result.ai_note && (
+                <p className="text-[11px] text-slate-500 mt-2 italic">{result.ai_note}</p>
+              )}
             </div>
 
-            {/* zkTLS Proof-of-Reserve Cryptographic Card (if RWA) */}
+            {/* Scoring Transparency — shows weight_profile, scoring_breakdown, seasoning */}
+            {(result.scoring_breakdown || result.weight_profile) && (
+              <div className="bg-gradient-to-br from-indigo-950/40 via-slate-900 to-purple-950/30 border border-indigo-500/30 rounded-xl p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-indigo-400 text-lg">🔬</span>
+                  <span className="text-sm font-bold text-indigo-300">Scoring Transparency & Methodology</span>
+                  {result.scoring_engine && (
+                    <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-0.5 rounded font-mono">
+                      {result.scoring_engine}
+                    </span>
+                  )}
+                </div>
+
+                {/* Weight Profile */}
+                {result.weight_profile && (
+                  <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-2">Sector-Adaptive Weight Profile</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs font-mono">
+                      {typeof result.weight_profile === 'object' && !Array.isArray(result.weight_profile) ? (
+                        Object.entries(result.weight_profile).map(([key, val]) => (
+                          <div key={key} className="flex flex-col bg-slate-900/60 p-2 rounded border border-slate-800/80">
+                            <span className="text-slate-400 capitalize text-[11px] truncate">{key.replace(/_/g, ' ')}</span>
+                            <span className="text-indigo-300 font-bold text-sm">{typeof val === 'number' ? `${(val * 100).toFixed(0)}%` : String(val)}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full text-indigo-300 font-medium">{String(result.weight_profile)}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Seasoning Score */}
+                {result.seasoning_score !== undefined && (
+                  <div className="flex items-center gap-3 bg-slate-950/50 p-2.5 rounded-lg border border-slate-800">
+                    <span className="text-[10px] text-slate-500 uppercase">Seasoning (Lindy):</span>
+                    <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full transition-all" style={{ width: `${Math.min(100, result.seasoning_score)}%` }}></div>
+                    </div>
+                    <span className="text-xs font-mono text-amber-300 font-bold">{result.seasoning_score}/100</span>
+                  </div>
+                )}
+
+                {/* Scoring Breakdown */}
+                {result.scoring_breakdown && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Per-Dimension Rationale</span>
+                    {Object.entries(result.scoring_breakdown).map(([key, rationale]) => (
+                      <div key={key} className="flex items-start gap-2 text-xs bg-slate-950/40 p-2 rounded border border-slate-800/50">
+                        <span className="text-indigo-400 font-mono font-bold min-w-[90px] capitalize">{key.replace(/_/g, ' ')}:</span>
+                        <span className="text-slate-300">{String(rationale)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Cryptographic Proof-of-Reserve Card (if RWA) */}
             {rwaPoRData && (
               <div className="bg-gradient-to-br from-emerald-950/50 via-slate-900 to-indigo-950/30 border border-emerald-500/40 rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-emerald-400 text-lg">🏦</span>
-                    <span className="text-sm font-bold text-emerald-300">zkTLS Bank Proof-of-Reserve Attestation</span>
+                    <span className="text-sm font-bold text-emerald-300">Cryptographic Proof-of-Reserve Attestation</span>
                     <span className="bg-emerald-500/20 text-emerald-300 text-[11px] px-2.5 py-0.5 rounded font-mono font-bold">
                       {rwaPoRData.coverage_percent}% Backed ({rwaPoRData.status})
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={recordZkTLSCertificate}
+                    onClick={recordPoRCertificate}
                     disabled={txStep > 0 && txStep < 3}
                     className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow"
                   >
-                    <span>📜 Mint zkTLS Cert on CC3</span>
+                    <span>📜 Mint PoR Cert on CC3</span>
                   </button>
                 </div>
 

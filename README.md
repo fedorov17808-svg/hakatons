@@ -12,7 +12,7 @@
 [![EVM Compatible](https://img.shields.io/badge/EVM-Chain_ID_102031-orange.svg)](https://rpc.cc3-testnet.creditcoin.network)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Live Demo](#-live-demo--contract-verification) • [Why Creditcoin?](#-why-creditcoin) • [Risk Methodology](#-risk-scoring-methodology) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [API Docs](#-api-endpoints)
+[Live Demo](#-live-demo--contract-verification) • [Technical Whitepaper](WHITE_PAPER.md) • [Seed Pitch Deck](PITCH_DECK.md) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [API Docs](#-api-endpoints)
 
 </div>
 
@@ -21,14 +21,35 @@
 ## ✨ Enterprise Features (v7.2.0)
 
 - ✅ **Creditcoin Native Precompile `0x0FD2` Integration** — Hardware-level cross-chain transaction verification, Merkle & Continuity proof binding ([verified on Blockscout](https://creditcoin-testnet.blockscout.com/tx/0x7986752dcf8d62a59cfc1c3bdf07df3aadb46095167282fa8818370b844d2fb8))
-- ✅ **5-Layer Anti-Manipulation & Circuit Breakers** — Lindy Seasoning curve ($M = \sqrt{\text{Age}/90}$), TWAP surge damping, Flash-loan cap ($\le 58$ pts on $+150\%$ surge), Bank-run protection ($\le 45$ pts on $<-35\%$ drop), Wash-trading divergence penalty
+- ✅ **Institutional Quantitative Risk Engine** — Jump-diffusion Merton Monte Carlo simulation (10,000 paths), VaR 95/99, Expected Shortfall (CVaR), and historical crisis stress testing (Black Thursday 2020, Terra/LUNA 2022, SVB Depeg 2023)
+- ✅ **BLS12-381 Signature Aggregation (Real EC Arithmetic via py_ecc)** — Production BLS12-381 pairing-based aggregation using the same curve as Ethereum 2.0 Beacon Chain, with per-node individual signing, FastAggregateVerify, and EIP-2537 gas economics
+- ✅ **5-Layer Anti-Manipulation & Circuit Breakers** — Lindy Seasoning curve ($M = \sqrt{\text{Age}/90}$), TWAP surge damping, Anti-TVL-Spike cap ($\le 58$ pts on $+150\%$ surge), Bank-run protection ($\le 45$ pts on $<-35\%$ drop), Wash-trading divergence penalty
 - ✅ **Multi-Source Data Diversification** — Consolidated ingestion across DeFiLlama, DexScreener (Uniswap, Sushi, Curve, Aerodrome), and live EVM RPC contract introspection
-- ✅ **Federated 2-of-3 BFT DON Quorum** — Independent validator nodes (AWS `us-east-1`, GCP `europe-west3`, BareMetal `tokyo-1`) with sorted address verification
-- ✅ **Autonomous Keeper Bot with On-Chain Drift Triggering** — Automatic detection of score drift $|\Delta_{\text{score}}| \ge 5$ pts and 24h Heartbeat cadences with autonomous multisig transaction broadcasting
+- ✅ **Federated 2-of-3 BFT DON Quorum** — Environment-configurable physical endpoints with real latency tracking, multi-region deployment support (auto-detects `DON_NODE_*_URL` for production), independent cryptographic keyrings per node
+- ✅ **Autonomous Keeper Daemon with On-Chain Drift Triggering** — Background `threading.Timer` scheduler with auto-start, configurable heartbeat cadence, score drift detection $|\Delta_{\text{score}}| \ge 5$ pts, and live `next_cycle_in_seconds` telemetry
 - ✅ **Self-Sovereign Direct MetaMask Mode + Gasless Relayer Mode** — 1-click dual execution engine allowing users or institutional relayers to commit cryptographic proofs
-- ✅ **zkTLS Proof-of-Reserve (PoR) Ledger** — Zero-Knowledge TLS session commitments and redacted custodian asset verifications for tokenized RWA assets
-- ✅ **Explainable AI (XAI)** — Deterministic mathematical rating engine decoupled from qualitative Gemini AI risk synthesis (zero hallucinations on score)
-- ✅ **24 Hardhat Tests & 8 E2E Pytest Phases** — 100% passing automated test suite validating security properties, economic slashing, and optimistic dispute windows
+- ✅ **Cryptographic Proof-of-Reserve (PoR) Commitments** — Keccak256 hash commitments (`C = Hash(value || blinding_factor)`) with independent `verify_commitment()` method; designed as drop-in integration point for TLSNotary SDK
+- ✅ **Direct On-Chain EVM RPC Indexer** — Autonomous Web2-independent contract state and reserve inspection
+- ✅ **Persistent Standalone Keeper Daemon** — SQLite Write-Ahead Logging (WAL) state storage and drift defense engine
+- ✅ **31 Hardhat Tests & 13 E2E Pytest Phases** — 100% passing automated test suite validating security properties, quantitative simulations, economic slashing, and optimistic dispute windows
+
+---
+
+## 🔍 Technical Transparency
+
+> We believe in honest engineering. Here's what's **production-ready** vs **demo/future** in this codebase:
+
+| Component | Status | Details |
+|:---|:---:|:---|
+| Smart Contract (CreditPulseASC) | 🟢 **Production** | Deployed & verified on CC3 testnet. 31 Hardhat tests including anti-malleability. |
+| Risk Scoring Engine | 🟢 **Production** | 7-vector scoring, 5-layer anti-manipulation, Lindy seasoning. Real math. |
+| Monte Carlo / VaR / CVaR | 🟢 **Production** | Jump-diffusion GBM with 10K paths. Non-deterministic (no fixed seed). |
+| BLS12-381 Aggregation | 🟢 **Production** | Real elliptic curve arithmetic via `py_ecc` (same curve as ETH 2.0). |
+| DON Oracle Network | 🟡 **Demo** | 3 real HTTP nodes on localhost. Production: deploy to separate VPS. |
+| Cross-Chain Message Encoder | 🟡 **Demo** | ABI-encodes EIP-5164 packets. Actual bridge relay requires deploying receiver contracts. |
+| P2P Telemetry | 🟢 **Production** | Real HTTP healthchecks with measured latency (not hardcoded). |
+| Proof-of-Reserve (PoR) | 🟡 **Demo** | Keccak256 hash commitments. Production: integrate TLSNotary SDK. |
+| $CTC Token | 📋 **Planned** | Tokenomics designed. ERC-20 contract not yet deployed. |
 
 ---
 
@@ -101,7 +122,7 @@ Try these real DeFi and Real-World Asset (RWA) protocol addresses in 1-click on 
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `CTC` (18 Decimals) |
 | **Block Explorer** | [Creditcoin Blockscout Explorer](https://creditcoin-testnet.blockscout.com) / [CC3 Explorer](https://explorer.cc3-testnet.creditcoin.network) |
-| **Smart Contract (ASC)** | [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438#code) (v7.0.0 Enterprise) |
+| **Smart Contract (ASC)** | [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438#code) (v7.2.0 Enterprise) |
 | **Native Precompile** | [`0x0000000000000000000000000000000000000FD2`](https://creditcoin-testnet.blockscout.com/address/0x0000000000000000000000000000000000000FD2) |
 | **🌐 Live Frontend** | [**frontend-gamma-pink-41.vercel.app**](https://frontend-gamma-pink-41.vercel.app) |
 | **⚙️ Live Backend API** | [**backend-lilac-nine-97.vercel.app**](https://backend-lilac-nine-97.vercel.app) |
@@ -126,7 +147,7 @@ graph TD
   subgraph 5-Layer Anti-Manipulation & Circuit Breakers
     API --> CB1[Lindy Seasoning Curve]
     API --> CB2[TWAP Surge Damping]
-    API --> CB3[Anti-Flash-Loan Hard Cap]
+    API --> CB3[Anti-TVL-Spike Hard Cap]
     API --> CB4[Bank-Run Protection]
   end
 
@@ -163,8 +184,8 @@ $$M_{\text{seasoning}} = \begin{cases} \sqrt{\frac{\text{Age}_{\text{days}}}{90}
 To prevent temporary pool inflation before score minting, single-day TVL increases $> 25\%$ are damped by 50%:
 $$\Delta \text{TVL}_{\text{effective}} = 25\% + 0.5 \times (\Delta \text{TVL}_{1d} - 25\%)$$
 
-### 3. Anti-Flash-Loan Hard Cap
-If a single-day surge exceeds $+150\%$, the overall score is strictly capped at $\le 58$ points (`CIRCUIT_BREAKER_FLASH_LOAN_SPIKE`).
+### 3. Anti-TVL-Spike Hard Cap
+If a single-day TVL surge exceeds $+150\%$, the overall score is strictly capped at $\le 58$ points (`CIRCUIT_BREAKER_TVL_SPIKE`). Note: this detects *daily* TVL changes, not intra-block flash loans (which require mempool-level monitoring).
 
 ### 4. Bank-Run Protection
 If a single-day capital flight exceeds $-35\%$, the overall score is forced down to $\le 45$ points (`CIRCUIT_BREAKER_BANK_RUN_PANIC`).
@@ -173,11 +194,11 @@ If a single-day capital flight exceeds $-35\%$, the overall score is forced down
 
 ## 📜 Smart Contract Specification
 
-The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) v7.0.0 is deployed on Creditcoin Testnet at [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438):
+The smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) v7.2.0 is deployed on Creditcoin Testnet at [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438):
 
 ```solidity
 contract CreditPulseASC {
-    string public constant VERSION = "7.0.0";
+    string public constant VERSION = "7.2.0";
     
     // BFT Multi-Oracle Threshold Quorum (2-of-3)
     function saveRiskReportMultiSigned(
@@ -202,7 +223,7 @@ contract CreditPulseASC {
         ContinuityProof calldata _continuityProof
     ) external returns (bytes32 queryId);
 
-    // zkTLS Proof-of-Reserve Certificate
+    // Cryptographic Proof-of-Reserve Certificate
     function saveRWAZkTLSCertificate(
         address _assetAddress,
         uint8 _score,
@@ -224,7 +245,7 @@ contract CreditPulseASC {
 ## 📚 Technical Documentation & Hackathon Materials
 
 * 📘 **[Technical Whitepaper & Architecture Spec](file:///Users/stepchik/.gemini/antigravity-ide/brain/20a48d39-8f67-45bb-aa21-275f72c052d2/whitepaper_technical_spec.md)** — Mathematical risk formulas, canonical data hashing, and BFT DON consensus.
-* 🛡️ **[Jury Defense Guide & Technical FAQ](file:///Users/stepchik/.gemini/antigravity-ide/brain/20a48d39-8f67-45bb-aa21-275f72c052d2/jury_defense_and_faq.md)** — Rigorous answers on TVL manipulation, float determinism, and zkTLS on-chain verification.
+* 🛡️ **[Jury Defense Guide & Technical FAQ](file:///Users/stepchik/.gemini/antigravity-ide/brain/20a48d39-8f67-45bb-aa21-275f72c052d2/jury_defense_and_faq.md)** — Rigorous answers on TVL manipulation, float determinism, and PoR on-chain verification.
 * 🎬 **[3-Minute Pitch & Live Demo Script](file:///Users/stepchik/.gemini/antigravity-ide/brain/20a48d39-8f67-45bb-aa21-275f72c052d2/pitch_and_demo_script.md)** — Step-by-step presentation timeline and live testnet transaction flow.
 * 📋 **[Verification Walkthrough](file:///Users/stepchik/.gemini/antigravity-ide/brain/20a48d39-8f67-45bb-aa21-275f72c052d2/walkthrough.md)** — Test suite logs and full system verification summary.
 
@@ -235,11 +256,11 @@ contract CreditPulseASC {
 ### 1. Run Complete Automated Test Suites
 
 ```bash
-# 1. Smart Contract Unit Tests (24/24 Passing)
+# 1. Smart Contract Unit Tests (31/31 Passing)
 cd contracts
 npx hardhat test
 
-# 2. Backend E2E Integration Suite (8/8 Phases Passing)
+# 2. Backend E2E Integration Suite (13/13 Phases Passing)
 cd ../backend
 source venv/bin/activate
 pytest test_e2e_suite.py -v -s
@@ -276,7 +297,7 @@ npm run dev
 | `POST` | `/api/record-don` | Commits risk report with 2-of-3 DON quorum signatures via gasless relayer. |
 | `POST` | `/api/record-verified` | Fetches Merkle/Continuity proofs and calls `saveVerifiedRiskReport` via `0x0FD2`. |
 | `POST` | `/api/attestcoin/verify` | Executes cross-chain inclusion proof verification against Creditcoin CC3. |
-| `POST` | `/api/zktls/attest-reserve` | Generates and verifies cryptographic zkTLS Proof-of-Reserve commitments. |
+| `POST` | `/api/zktls/attest-reserve` | Generates and verifies Keccak256 hash commitment Proof-of-Reserve attestations. |
 | `POST` | `/api/verify` | Independently reproduces score from raw inputs (100% deterministic provenance). |
 | `GET` | `/api/don/nodes` | Live status, latency, and health of the federated validator node cluster. |
 | `GET` | `/api/autonomous/status` | Real-time monitoring telemetry and drift metrics of the Autonomous Keeper. |
