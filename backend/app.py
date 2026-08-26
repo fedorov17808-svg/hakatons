@@ -12,6 +12,7 @@ import urllib.request
 import uuid
 
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -134,12 +135,36 @@ def generate_risk_narrative(
         return None, str(e), [], "0x" + "0"*64
 
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Modern lifespan handler replacing deprecated @app.on_event('startup')."""
+    logger.info("Initializing CreditPulse AI Engine v7.2.0 Enterprise...")
+    pk = os.getenv("PRIVATE_KEY")
+    if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
+        logger.warning("PRIVATE_KEY not provided or invalid — recording will be restricted.")
+    
+    threading.Thread(target=get_protocols_cached, daemon=True).start()
+    threading.Thread(target=_warmup_cache, daemon=True).start()
+
+    # Start autonomous keeper background scheduler
+    if KEEPER_ENABLED:
+        _initial_timer = threading.Timer(30.0, _start_keeper_scheduler)
+        _initial_timer.daemon = True
+        _initial_timer.start()
+        logger.info(f"Autonomous Keeper scheduled (first cycle in 30s, then every {HEARTBEAT_CADENCE_SEC}s)")
+    else:
+        logger.info("Autonomous Keeper disabled (set KEEPER_ENABLED=true to enable)")
+    
+    yield  # App runs
+    logger.info("CreditPulse AI Engine shutting down.")
+
 app = FastAPI(
     title='CreditPulse AI Engine',
     version='7.2.0',
     description='Autonomous RWA Risk Assessment & Credit Scoring Infrastructure on Creditcoin',
     docs_url='/docs',
-    redoc_url='/redoc'
+    redoc_url='/redoc',
+    lifespan=lifespan
 )
 app.state.limiter = limiter
 
@@ -240,25 +265,7 @@ def _warmup_cache():
             logger.debug(f"Warmup notice for {addr}: {e}")
     logger.info("✅ Multi-source cache pre-warmed. Instant 0ms response ready.")
 
-@app.on_event("startup")
-def startup_event():
-    logger.info("Initializing CreditPulse AI Engine v7.2.0 Enterprise...")
-    pk = os.getenv("PRIVATE_KEY")
-    if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
-        logger.warning("PRIVATE_KEY not provided or invalid — recording will be restricted.")
-    
-    threading.Thread(target=get_protocols_cached, daemon=True).start()
-    threading.Thread(target=_warmup_cache, daemon=True).start()
 
-    # Start autonomous keeper background scheduler
-    if KEEPER_ENABLED:
-        # Delay first cycle by 30 seconds to allow cache warmup
-        _initial_timer = threading.Timer(30.0, _start_keeper_scheduler)
-        _initial_timer.daemon = True
-        _initial_timer.start()
-        logger.info(f"Autonomous Keeper scheduled (first cycle in 30s, then every {HEARTBEAT_CADENCE_SEC}s)")
-    else:
-        logger.info("Autonomous Keeper disabled (set KEEPER_ENABLED=true to enable)")
 
 async def verify_api_key(x_api_key: str = Header(default=None)):
     """Verify the provided API key against the environment variable."""
