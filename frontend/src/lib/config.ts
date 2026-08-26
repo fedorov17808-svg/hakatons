@@ -64,11 +64,12 @@ export interface DONNodeItem {
 
 // ─── Preset Asset Addresses ───────────────────────────────────
 export const PRESET_ASSETS = [
-  { name: "Aave V3", address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2" },
+  { name: "Aave V3 (DeFi)", address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2" },
+  { name: "Ondo USDY (RWA)", address: "0xe8684521db5a68778844145ba0a0374d8e95e140" },
+  { name: "Mountain USDM (RWA)", address: "0x59d9356c82bbe361148f864a1d74076C449c761a" },
+  { name: "Centrifuge (RWA)", address: "0xf1c9881be22ebf4084f32a4e21ff272c7cb6c710" },
   { name: "Compound V3", address: "0xc3d688B66703497DAA19211EEdff47f25384cdc3" },
-  { name: "Lido stETH", address: "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84" },
-  { name: "MakerDAO", address: "0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2" },
-  { name: "Ondo USDY", address: "0x96F6eF951840721AdBF46Ac996b59E0235CB985C" },
+  { name: "MakerDAO", address: "0x9759A6Ac90977b93B58547b4A71c78317f391A28" },
 ];
 
 // ─── Utility Functions ────────────────────────────────────────

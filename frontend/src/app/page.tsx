@@ -10,6 +10,7 @@ import { ProofVerifier } from "@/components/ProofVerifier";
 import { InstitutionalPortal } from "@/components/InstitutionalPortal";
 import { Footer } from "@/components/Footer";
 import { DONClusterMonitor } from "@/components/DONClusterMonitor";
+import { AnalysisForm } from "@/components/AnalysisForm";
 import {
   EXPLORER_URL, API_URL, CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI,
   PRESET_ASSETS, getButtonGradient,
@@ -104,14 +105,7 @@ export default function Home() {
     }
   }, [error]);
 
-  const presets = [
-    { name: "Aave V3 (DeFi)", address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2" },
-    { name: "Ondo USDY (RWA)", address: "0xe8684521db5a68778844145ba0a0374d8e95e140" },
-    { name: "Mountain USDM (RWA)", address: "0x59d9356c82bbe361148f864a1d74076C449c761a" },
-    { name: "Centrifuge (RWA)", address: "0xf1c9881be22ebf4084f32a4e21ff272c7cb6c710" },
-    { name: "Compound V3", address: "0xc3d688B66703497DAA19211EEdff47f25384cdc3" },
-    { name: "MakerDAO", address: "0x9759A6Ac90977b93B58547b4A71c78317f391A28" },
-  ];
+
 
   const playSuccessSound = () => {
     try {
@@ -639,62 +633,13 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         <DONClusterMonitor nodes={donNodes} />
 
         {/* Input Form & Preset Chips */}
-        <div className="mb-10 print:hidden">
-          <form onSubmit={(e) => handleAnalyze(e)} className="mb-4">
-            <div className="flex flex-col sm:flex-row gap-3 bg-slate-900/90 p-3 rounded-[1.25rem] border border-slate-700 shadow-2xl backdrop-blur-md focus-within:border-cyan-500/50 focus-within:ring-4 focus-within:ring-cyan-500/10 transition-all">
-              <input
-                id="input-address"
-                aria-label="Enter Ethereum contract address"
-                type="text"
-                placeholder="Enter a smart contract address (e.g., 0x...)"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAnalyze(e); } }}
-                className="flex-1 bg-transparent px-5 py-4 text-base focus:outline-none text-white placeholder-slate-500 font-mono"
-              />
-              <button
-                id="btn-analyze"
-                aria-label="Analyze DeFi protocol risk"
-                type="submit"
-                disabled={loading}
-                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-bold text-base rounded-xl transition shadow-lg shadow-cyan-500/25 flex items-center gap-2 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:outline-none"
-              >
-                {loading ? "Analyzing..." : "Analyze Protocol"}
-              </button>
-            </div>
-          </form>
-
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-500 font-medium">Quick Presets:</span>
-              {presets.map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleAnalyze(undefined, preset.address)}
-                  className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 px-3 py-1.5 rounded-lg border border-slate-800 transition-all duration-200 ease-out hover:scale-105 active:scale-95 font-medium"
-                >
-                  {preset.name}
-                </button>
-              ))}
-            </div>
-
-            {history.length > 0 && (
-               <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span>Recent:</span>
-                {history.map((h, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleAnalyze(undefined, h)}
-                    className="font-mono hover:text-cyan-400 text-slate-400 underline transition-all"
-                  >
-                    {h.slice(0, 6)}...
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <AnalysisForm
+          address={address}
+          loading={loading}
+          history={history}
+          onAddressChange={setAddress}
+          onAnalyze={handleAnalyze}
+        />
 
         {loading && (
           <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-16 text-center space-y-8 shadow-2xl my-10">

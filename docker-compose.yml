@@ -99,7 +99,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+      - NEXT_PUBLIC_API_URL=http://api-gateway:8000
       - NEXT_PUBLIC_CONTRACT_ADDRESS=0x358925c5839a36bB2181786B8763Da0653B0f438
     networks:
       - creditpulse-net
