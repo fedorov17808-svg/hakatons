@@ -9,68 +9,14 @@ import { RiskMetrics, RiskResult, getScoreColor, getScoreText, getVerdictStyle }
 import { ProofVerifier } from "@/components/ProofVerifier";
 import { InstitutionalPortal } from "@/components/InstitutionalPortal";
 import { Footer } from "@/components/Footer";
+import { DONClusterMonitor } from "@/components/DONClusterMonitor";
+import {
+  EXPLORER_URL, API_URL, CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI,
+  PRESET_ASSETS, getButtonGradient,
+  type OnChainReportItem, type RWAAttestationData, type DONNodeItem
+} from "@/lib/config";
 
-const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const CC3_RPC = "https://rpc.cc3-testnet.creditcoin.network";
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x358925c5839a36bB2181786B8763Da0653B0f438";
 
-const CONTRACT_ABI = [
-  "function saveRiskReportSigned(address _assetAddress, uint8 _overallScore, uint8 _liquidity, uint8 _collateral, uint8 _auditScore, uint8 _security, uint8 _volatility, uint8 _governance, bytes32 _dataHash, bytes calldata _signature) external",
-  "function saveRiskReportMultiSigned(address _assetAddress, uint8[7] calldata _scores, bytes32 _dataHash, bytes32 _aiDigest, address[] calldata _signers, bytes[] calldata _signatures) external",
-  "function saveRWACertificate(address _assetAddress, uint8 _score, uint16 _reserveRatioBps, bytes32 _porHash, bytes32 _legalEntityDigest) external",
-  "function saveRWAZkTLSCertificate(address _assetAddress, uint8 _score, uint16 _reserveRatioBps, bytes32 _zkTlsProofHash, bytes32 _custodianKeyHash, bytes32 _sessionCommitment) external",
-  "function challengeReport(address _assetAddress, uint256 _reportIndex, string calldata _evidenceUrl) external payable",
-  "function isReportFinalized(address _assetAddress, uint256 _reportIndex) external view returns (bool)",
-  "function getReportHistory(address _assetAddress) external view returns (tuple(address assetAddress, uint8 overallScore, uint8 liquidity, uint8 collateral, uint8 auditScore, uint8 security, uint8 volatility, uint8 governance, bytes32 dataHash, bytes32 aiDigest, bytes32 proofHash, uint40 timestamp, address verifiedBy, bool crossChainVerified)[])",
-  "function getRWACertificateHistory(address _assetAddress) external view returns (tuple(address assetAddress, uint8 score, uint16 reserveRatioBps, bytes32 porHash, bytes32 legalEntityDigest, uint40 timestamp, address attestedBy)[])",
-  "function getZkTLSCertificateHistory(address _assetAddress) external view returns (tuple(address assetAddress, uint8 score, uint16 reserveRatioBps, bytes32 zkTlsProofHash, bytes32 custodianKeyHash, bytes32 sessionCommitment, uint40 timestamp, address verifiedBy)[])",
-  "function getAssetReportCount(address _assetAddress) external view returns (uint256)",
-  "function requiredOracleQuorum() external view returns (uint8)",
-  "function totalOracleStake() external view returns (uint256)",
-  "function totalInsurancePool() external view returns (uint256)"
-];
-
-interface OnChainReportItem {
-  overallScore: number;
-  dataHash: string;
-  timestamp: number;
-  verifiedBy: string;
-  crossChainVerified: boolean;
-  proofHash: string;
-  isFinalized?: boolean;
-}
-
-interface RWAAttestationData {
-  is_solvent: boolean;
-  reserve_ratio_bps: number;
-  coverage_percent: number;
-  status: string;
-  por_hash: string;
-  legal_entity_digest: string;
-  custodian: string;
-  spv_registration: string;
-  zk_tls_proof_hash?: string;
-  session_commitment?: string;
-  custodian_key_hash?: string;
-  tls_standard?: string;
-  proof_type?: string;
-}
-
-interface DONNodeItem {
-  node_id: string;
-  name: string;
-  address: string;
-  region: string;
-  status: string;
-  latency_ms: number;
-}
-
-const getButtonGradient = (score: number) => {
-  if (score >= 70) return 'from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/20';
-  if (score >= 40) return 'from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20';
-  return 'from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 shadow-amber-500/20';
-};
 
 export default function Home() {
   const [address, setAddress] = useState("");
@@ -690,35 +636,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         </div>
 
         {/* Federated DON Node Cluster Monitor Card */}
-        {donNodes.length > 0 && (
-          <div className="mb-8 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 shadow-xl print:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <span>Active DON Validator Cluster</span>
-              </span>
-              <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/30">
-                BFT Quorum: 2-of-3
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-              {donNodes.map((n) => (
-                <div key={n.node_id} className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-200">{n.name.split(' ')[2] || n.node_id}</span>
-                    <span className="text-emerald-400 text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                      {n.latency_ms}ms
-                    </span>
-                  </div>
-                  <span className="text-slate-500 block text-[10px]">{n.region}</span>
-                  <code className="text-[10px] text-cyan-400/80 block truncate">
-                    {n.address}
-                  </code>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <DONClusterMonitor nodes={donNodes} />
 
         {/* Input Form & Preset Chips */}
         <div className="mb-10 print:hidden">
