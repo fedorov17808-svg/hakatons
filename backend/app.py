@@ -1089,14 +1089,7 @@ def api_zktls_attest(req: ZkTLSRARequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Verification routes moved to routes/verification.py
-
-
-# Onchain stats moved to routes/verification.py
-
-# Attestcoin routes moved to routes/attestcoin.py
-
-
+# --- Extracted route modules: routes/verification.py, routes/attestcoin.py, routes/quant_and_consensus.py ---
 
 # --- Autonomous Credit Keeper Engine v7.2.0 Enterprise ---
 DRIFT_THRESHOLD_PTS = 5.0
