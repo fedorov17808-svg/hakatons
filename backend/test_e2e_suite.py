@@ -38,14 +38,16 @@ from app import (
     ZkTLSRARequest,
     get_autonomous_status,
     execute_autonomous_cycle,
-    attestcoin_verify,
-    AttestcoinVerifyRequest,
 )
 from routes.verification import (
     api_verify,
     VerifyRequest,
     api_por_verify,
     PoRVerifyRequest,
+)
+from routes.attestcoin import (
+    attestcoin_verify,
+    AttestcoinVerifyRequest,
 )
 from routes.quant_and_consensus import (
     api_quant_monte_carlo,
