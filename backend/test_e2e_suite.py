@@ -28,14 +28,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import (
     process_analysis,
-    api_verify,
-    VerifyRequest,
     api_sign,
     RecordRequest,
     api_multi_sign,
     MultiSignRequest,
-    api_por_verify,
-    PoRVerifyRequest,
     api_don_nodes,
     api_don_consensus,
     api_zktls_attest,
@@ -44,6 +40,12 @@ from app import (
     execute_autonomous_cycle,
     attestcoin_verify,
     AttestcoinVerifyRequest,
+)
+from routes.verification import (
+    api_verify,
+    VerifyRequest,
+    api_por_verify,
+    PoRVerifyRequest,
 )
 from routes.quant_and_consensus import (
     api_quant_monte_carlo,
@@ -351,7 +353,8 @@ class TestCreditPulseE2E(unittest.TestCase):
 
     def test_phase9_scoring_transparency_and_version_integrity(self):
         """Phase 9: Validate scoring transparency (weight_profile dict, breakdown rationales) and version integrity."""
-        from app import health, api_stats, api_methodology, app as fastapi_app
+        from app import health, api_stats, app as fastapi_app
+        from routes.verification import api_methodology
         
         # 1. Verify FastAPI app and endpoint versions
         self.assertEqual(fastapi_app.version, "7.2.0")
