@@ -253,17 +253,19 @@ contract CreditPulseASC {
 
 ## 🚀 Quick Start & Reproduction
 
-### 1. Run Complete Automated Test Suites
+### 1. Run Complete Automated Test Suites (106 Tests)
 
 ```bash
-# 1. Smart Contract Unit Tests (31/31 Passing)
-cd contracts
-npx hardhat test
+# 1. Smart Contract Tests (14 passing)
+cd contracts && npx hardhat test
 
-# 2. Backend E2E Integration Suite (13/13 Phases Passing)
+# 2. Backend Python Tests (32 passing)
 cd ../backend
 source venv/bin/activate
-pytest test_e2e_suite.py -v -s
+python -m pytest test_e2e_suite.py test_http_e2e.py -q
+
+# 3. Frontend Component Tests (60 passing)
+cd ../frontend && npm test
 ```
 
 ### 2. Start Full Local Development Stack
