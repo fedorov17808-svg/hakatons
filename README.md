@@ -31,7 +31,7 @@
 - ✅ **Cryptographic Proof-of-Reserve (PoR) Commitments** — Keccak256 hash commitments (`C = Hash(value || blinding_factor)`) with independent `verify_commitment()` method; designed as drop-in integration point for TLSNotary SDK
 - ✅ **Direct On-Chain EVM RPC Indexer** — Autonomous Web2-independent contract state and reserve inspection
 - ✅ **Persistent Standalone Keeper Daemon** — SQLite Write-Ahead Logging (WAL) state storage and drift defense engine
-- ✅ **31 Hardhat Tests, 13 E2E Pytest Phases & 11 HTTP E2E Tests** — 55 total automated tests validating security properties, quantitative simulations, economic slashing, API serialization, and optimistic dispute windows
+- ✅ **31 Hardhat Tests, 13 E2E Pytest Phases & 19 HTTP E2E Tests** — 63 total automated tests validating security properties, quantitative simulations, economic slashing, API serialization, edge-cases, and optimistic dispute windows
 
 ---
 
