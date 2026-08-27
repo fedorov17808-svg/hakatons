@@ -142,5 +142,100 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         print("✅ GET /docs — Swagger UI available")
 
 
+class TestEdgeCasesAndNegativePaths(unittest.TestCase):
+    """Negative and edge-case tests for robustness validation."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.client = TestClient(app)
+
+    # ─── 404 / Invalid Routes ──────────────────────────────────
+
+    def test_nonexistent_endpoint_returns_404(self):
+        """GET /api/nonexistent — should return 404."""
+        r = self.client.get("/api/nonexistent")
+        self.assertEqual(r.status_code, 404)
+        print("✅ GET /api/nonexistent — 404 Not Found")
+
+    def test_wrong_method_returns_405(self):
+        """DELETE /health — wrong HTTP method should return 405."""
+        r = self.client.delete("/health")
+        self.assertEqual(r.status_code, 405)
+        print("✅ DELETE /health — 405 Method Not Allowed")
+
+    # ─── Malformed Payloads ────────────────────────────────────
+
+    def test_monte_carlo_missing_required_fields(self):
+        """POST /api/quant/monte-carlo with empty body — 422."""
+        r = self.client.post("/api/quant/monte-carlo", json={})
+        self.assertEqual(r.status_code, 422)
+        print("✅ POST /api/quant/monte-carlo (empty) — 422 Validation Error")
+
+    def test_stress_test_invalid_scenario(self):
+        """POST /api/quant/stress-test with invalid scenario — should still work (fallback)."""
+        r = self.client.post("/api/quant/stress-test", json={
+            "tvl_usd": 1000000,
+            "score": 75,
+            "scenario": "nonexistent_scenario"
+        })
+        # Should either 200 with fallback or 400 — both acceptable
+        self.assertIn(r.status_code, [200, 400])
+        print(f"✅ POST /api/quant/stress-test (invalid scenario) — {r.status_code}")
+
+    def test_cross_chain_relay_invalid_chain_id(self):
+        """POST /api/cross-chain/relay with chain_id=0 — should succeed (encoding only)."""
+        r = self.client.post("/api/cross-chain/relay", json={
+            "target_chain_id": 0,
+            "asset_address": "0x0000000000000000000000000000000000000000",
+            "score": 0,
+            "dynamic_ltv": 0,
+            "risk_tier": "UNKNOWN",
+            "data_hash": "0x" + "00" * 32,
+            "cc3_tx_hash": "0x" + "00" * 32
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        # Response should contain encoded payload data
+        self.assertTrue(len(data) > 0)
+        print("✅ POST /api/cross-chain/relay (zero chain) — 200 OK")
+
+    # ─── Boundary Values ───────────────────────────────────────
+
+    def test_monte_carlo_extreme_values(self):
+        """POST /api/quant/monte-carlo with extreme TVL — should compute."""
+        r = self.client.post("/api/quant/monte-carlo", json={
+            "tvl_usd": 999999999999,
+            "score": 1,
+            "iterations": 100,
+            "time_horizon_days": 1
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertIn("metrics", data)
+        metrics = data["metrics"]
+        self.assertIn("var_95_pct", metrics)
+        print("✅ POST /api/quant/monte-carlo (extreme values) — computed successfully")
+
+    # ─── Response Structure Validation ─────────────────────────
+
+    def test_health_response_structure(self):
+        """GET /health — validate full response schema."""
+        r = self.client.get("/health")
+        data = r.json()
+        self.assertIn("status", data)
+        self.assertIn("version", data)
+        self.assertIn(data["status"], ["healthy", "operational"])
+        print("✅ GET /health — response schema validated")
+
+    def test_methodology_response_completeness(self):
+        """GET /api/methodology — should have all scoring dimensions."""
+        r = self.client.get("/api/methodology")
+        data = r.json()
+        self.assertIn("dimensions", data)
+        dims = data["dimensions"]
+        self.assertGreaterEqual(len(dims), 4, "Should have at least 4 scoring dimensions")
+        print(f"✅ GET /api/methodology — {len(dims)} scoring dimensions documented")
+
+
 if __name__ == "__main__":
     unittest.main()
