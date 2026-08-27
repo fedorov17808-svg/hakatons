@@ -13,6 +13,8 @@ import { DONClusterMonitor } from "@/components/DONClusterMonitor";
 import { AnalysisForm } from "@/components/AnalysisForm";
 import { ScoreHeader } from "@/components/ScoreHeader";
 import { TxStatusPanel } from "@/components/TxStatusPanel";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ErrorBanner } from "@/components/ErrorBanner";
 import {
   EXPLORER_URL, API_URL, CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI,
   PRESET_ASSETS, getButtonGradient,
@@ -643,30 +645,9 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
           onAnalyze={handleAnalyze}
         />
 
-        {loading && (
-          <div className="bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-3xl p-16 text-center space-y-8 shadow-2xl my-10">
-            <div className="relative w-24 h-24 mx-auto">
-              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500 to-blue-500 rounded-full animate-ping opacity-20"></div>
-              <div className="relative w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center border-2 border-cyan-500/50 shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-                <div className="w-8 h-8 bg-gradient-to-tr from-cyan-400 to-blue-500 rounded-full animate-pulse shadow-[0_0_20px_rgba(34,211,238,0.8)]"></div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <p className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Querying Federated DON Cluster & Multi-Token RPCs...</p>
-              <p className="text-sm font-mono text-slate-400">Estimated time: ~2-4 seconds</p>
-            </div>
-          </div>
-        )}
+        {loading && <LoadingSpinner />}
 
-        {error && (
-          <div className={`mb-6 p-4 ${error.startsWith('INFO:') ? 'bg-blue-950/50 border-2 border-blue-500/50 text-blue-400' : 'bg-red-950 border-2 border-red-500 text-red-500'} rounded-xl text-sm flex justify-between items-center shadow-lg font-medium`}>
-            <div className="flex items-center gap-3">
-              <span className="text-xl">{error.startsWith('INFO:') ? 'ℹ️' : '⚠️'}</span>
-              <span>{error.startsWith('INFO:') ? error.slice(5) : error}</span>
-            </div>
-            <button onClick={() => setError("")} className="font-bold">✕</button>
-          </div>
-        )}
+        <ErrorBanner error={error} onDismiss={() => setError("")} />
 
         {/* Results Dashboard */}
         {!loading && result && (
