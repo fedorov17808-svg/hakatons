@@ -302,7 +302,7 @@ export default function Home() {
     if (!result) return;
     const reportMd = `# 📑 CreditPulse AI — Institutional Due Diligence Report v7.2.0 Enterprise
 **Asset / Protocol:** ${result.protocol_name || "Smart Contract"}
-**Contract Address:** \`${address || presets[0].address}\`
+**Contract Address:** \`${address || PRESET_ASSETS[0].address}\`
 **Category:** ${result.rwa_type}
 **Report Timestamp:** ${new Date().toUTCString()}
 **Network Anchor:** Creditcoin Testnet CC3 (Chain 102031)
@@ -378,7 +378,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            address: address || presets[0].address,
+            address: address || PRESET_ASSETS[0].address,
             score: Math.round(result.score || 0),
             liquidity: Math.round(result.liquidity || 0),
             collateral: Math.round(result.collateral || 0),
@@ -413,7 +413,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         ];
 
         const tx = await contract.saveRiskReportMultiSigned(
-          address || presets[0].address,
+          address || PRESET_ASSETS[0].address,
           scoresArray,
           result.data_hash || ethers.ZeroHash,
           result.ai_digest || ethers.ZeroHash,
@@ -428,14 +428,14 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         setTxStep(3);
         setTxStatus(`✅ Confirmed on Creditcoin CC3 with Federated DON Quorum!`);
         playSuccessSound();
-        fetchOnChainHistory(address || presets[0].address);
+        fetchOnChainHistory(address || PRESET_ASSETS[0].address);
       } else {
         // Gasless Relayer DON Flow (Works 1-Click for every user!)
         const res = await fetch(`${API_URL}/api/record-don`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            address: address || presets[0].address,
+            address: address || PRESET_ASSETS[0].address,
             score: Math.round(result.score || 0),
             liquidity: Math.round(result.liquidity || 0),
             collateral: Math.round(result.collateral || 0),
@@ -480,7 +480,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
           setTxStep(3);
           setTxStatus(`Step 3/3: ✅ Confirmed in block #${blockNum} with 2-of-3 DON Quorum!`);
           playSuccessSound();
-          fetchOnChainHistory(address || presets[0].address);
+          fetchOnChainHistory(address || PRESET_ASSETS[0].address);
         } else {
           setTxStep(3);
           setTxStatus(`Transaction submitted to Creditcoin mempool: ${formattedHash}`);
@@ -508,7 +508,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
       const tx = await contract.saveRWAZkTLSCertificate(
-        address || presets[0].address,
+        address || PRESET_ASSETS[0].address,
         Math.round(result.score || 0),
         rwaPoRData.reserve_ratio_bps,
         rwaPoRData.zk_tls_proof_hash || ethers.ZeroHash,
@@ -523,7 +523,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
       setTxStep(3);
       setTxStatus("✅ Proof-of-Reserve Certificate minted on Creditcoin CC3!");
       playSuccessSound();
-      fetchOnChainHistory(address || presets[0].address);
+      fetchOnChainHistory(address || PRESET_ASSETS[0].address);
     } catch (err: unknown) {
       setTxStep(0);
       const e = err as Error;
@@ -548,7 +548,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
         method: "POST",
         headers,
         body: JSON.stringify({
-          address: address || presets[0].address,
+          address: address || PRESET_ASSETS[0].address,
           score: Math.round(result.score || 0),
           liquidity: Math.round(result.liquidity || 0),
           collateral: Math.round(result.collateral || 0),
@@ -598,7 +598,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
           ? `Step 3/3: ✅ Confirmed in block #${blockNum} — ⛓️ Cross-chain verified via Attestcoin!`
           : `Step 3/3: ✅ Confirmed in block #${blockNum} on Creditcoin Testnet!`);
         playSuccessSound();
-        fetchOnChainHistory(address || presets[0].address);
+        fetchOnChainHistory(address || PRESET_ASSETS[0].address);
       } else {
         setTxStep(3);
         setTxStatus(`Transaction broadcast to Creditcoin mempool: ${formattedHash}`);
@@ -661,9 +661,9 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
             <ScoreHeader
               score={result.score || 0}
               displayScore={displayScore}
-              rwaType={result.rwa_type}
+              rwaType={result.rwa_type || 'Unknown'}
               protocolName={result.protocol_name}
-              tvl={result.tvl}
+              tvl={result.raw_inputs?.tvl ? `$${(result.raw_inputs.tvl / 1e6).toFixed(1)}M` : undefined}
             />
 
             {/* Radar Chart & Metrics */}
@@ -705,7 +705,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
             )}
 
             <OnChainHistory
-              records={onchainHistory}
+              records={onchainHistory.map(r => ({ ...r, isFinalized: r.isFinalized ?? false }))}
               loading={loadingOnchainHistory}
               onRefresh={() => fetchOnChainHistory(address || PRESET_ASSETS[0].address)}
             />
@@ -726,7 +726,7 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
             <TxStatusPanel
               txStep={txStep}
               txStatus={txStatus}
-              txHash={txHash}
+              txHash={txHash || ''}
               isCopied={isCopied}
               onCopy={copyToClipboard}
             />
