@@ -19,6 +19,8 @@ import { OnChainHistory } from "@/components/OnChainHistory";
 import { ExecutionModeSwitcher } from "@/components/ExecutionModeSwitcher";
 import { ActionButtons } from "@/components/ActionButtons";
 import { ScoringTransparency } from "@/components/ScoringTransparency";
+import { ProofOfReserveCard } from "@/components/ProofOfReserveCard";
+import { AIAdvisory } from "@/components/AIAdvisory";
 import {
   EXPLORER_URL, API_URL, CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI,
   PRESET_ASSETS, getButtonGradient,
@@ -687,75 +689,19 @@ ${(result.ai_risks || []).map(r => `- ${r}`).join('\n')}
               seasoningScore={result.seasoning_score}
               scoringEngine={result.scoring_engine}
             />
-            {/* Cryptographic Proof-of-Reserve Card (if RWA) */}
             {rwaPoRData && (
-              <div className="bg-gradient-to-br from-emerald-950/50 via-slate-900 to-indigo-950/30 border border-emerald-500/40 rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-emerald-400 text-lg">🏦</span>
-                    <span className="text-sm font-bold text-emerald-300">Cryptographic Proof-of-Reserve Attestation</span>
-                    <span className="bg-emerald-500/20 text-emerald-300 text-[11px] px-2.5 py-0.5 rounded font-mono font-bold">
-                      {rwaPoRData.coverage_percent}% Backed ({rwaPoRData.status})
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={recordPoRCertificate}
-                    disabled={txStep > 0 && txStep < 3}
-                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow"
-                  >
-                    <span>📜 Mint PoR Cert on CC3</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
-                  <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-500 block text-[10px]">CUSTODIAN BANK</span>
-                    <span className="text-slate-200 font-medium">{rwaPoRData.custodian}</span>
-                  </div>
-                  <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-500 block text-[10px]">TLS COMMITMENT</span>
-                    <code className="text-cyan-300 block truncate">{rwaPoRData.session_commitment || "0x..."}</code>
-                  </div>
-                  <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-                    <span className="text-slate-500 block text-[10px]">RESERVE RATIO</span>
-                    <span className="text-emerald-400 font-bold">{rwaPoRData.reserve_ratio_bps} BPS</span>
-                  </div>
-                </div>
-              </div>
+              <ProofOfReserveCard
+                data={rwaPoRData}
+                txStep={txStep}
+                onMintCert={recordPoRCertificate}
+              />
             )}
 
-            {/* Gemini AI Qualitative Advisory */}
             {result.ai_narrative && (
-              <div className="bg-gradient-to-br from-violet-950/40 via-indigo-950/30 to-slate-900/50 border border-violet-700/40 rounded-xl p-5 shadow-lg">
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider">✨ Institutional Qualitative Advisory</span>
-                    <span className="text-xs px-2.5 py-0.5 bg-violet-900/50 text-violet-300 rounded-full border border-violet-700/40 font-mono">Gemini AI</span>
-                  </div>
-                  <span className="text-xs px-2.5 py-0.5 bg-emerald-950/50 text-emerald-300 rounded-full border border-emerald-700/40 font-mono">
-                    ✓ Deterministic Core Verified
-                  </span>
-                </div>
-                <p className="text-sm text-slate-200 leading-relaxed italic bg-slate-900/60 p-3.5 rounded-lg border border-violet-900/30">&ldquo;{result.ai_narrative}&rdquo;</p>
-                {result.ai_risks && result.ai_risks.length > 0 && (
-                  <div className="mt-3.5 pt-3 border-t border-violet-800/30 space-y-2">
-                    <span className="text-xs text-violet-400/80 font-semibold uppercase tracking-wider">Specific Risk Vectors</span>
-                    {result.ai_risks.map((risk, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0 mt-0.5 ${
-                          risk.includes('[HIGH]') ? 'bg-rose-950/60 text-rose-300 border-rose-700/50' :
-                          risk.includes('[MED]') ? 'bg-amber-950/60 text-amber-300 border-amber-700/50' :
-                          'bg-cyan-950/60 text-cyan-300 border-cyan-700/50'
-                        }`}>
-                          {risk.includes('[HIGH]') ? 'HIGH' : risk.includes('[MED]') ? 'MED' : 'INFO'}
-                        </span>
-                        <span>{risk.replace(/\[(HIGH|MED|LOW|INFO)\]\s*/g, '')}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <AIAdvisory
+                narrative={result.ai_narrative}
+                risks={result.ai_risks}
+              />
             )}
 
             <OnChainHistory
