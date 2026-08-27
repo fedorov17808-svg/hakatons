@@ -1092,40 +1092,10 @@ def api_zktls_attest(req: ZkTLSRARequest):
 # Verification routes moved to routes/verification.py
 
 
-@app.get("/api/stats/onchain", tags=['Recording'])
-def api_stats_onchain():
-    """Fetch live on-chain protocol counters directly from CreditPulseASC.sol on CC3."""
-    try:
-        w3 = Web3(Web3.HTTPProvider(RPC_URL))
-        contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI)
-        
-        report_count = contract.functions.reportCount().call()
-        verified_proof_count = contract.functions.verifiedProofCount().call()
-        version = contract.functions.VERSION().call()
-        owner = contract.functions.owner().call()
-        oracle = contract.functions.oracleSigner().call()
-        
-        return {
-            "connected": True,
-            "contract_address": CONTRACT_ADDRESS,
-            "network": "Creditcoin Testnet CC3 (Chain 102031)",
-            "version": version,
-            "total_reports_onchain": report_count,
-            "verified_crosschain_proofs": verified_proof_count,
-            "contract_owner": owner,
-            "oracle_signer": oracle,
-            "block_number": w3.eth.block_number,
-            "blockscout_url": f"https://creditcoin-testnet.blockscout.com/address/{CONTRACT_ADDRESS}"
-        }
-    except Exception as e:
-        return {
-            "connected": False,
-            "contract_address": CONTRACT_ADDRESS,
-            "error": str(e)
-        }
-
+# Onchain stats moved to routes/verification.py
 
 # Attestcoin routes moved to routes/attestcoin.py
+
 
 
 # --- Autonomous Credit Keeper Engine v7.2.0 Enterprise ---

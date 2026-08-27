@@ -5,6 +5,7 @@ Stateless verification endpoints:
 - POST /api/verify — Independently reproduce risk scores from raw inputs
 - POST /api/rwa/por-verify — Verify RWA Proof-of-Reserve backing ratio
 - GET  /api/methodology — Full scoring methodology specification
+- GET  /api/stats/onchain — Live on-chain protocol counters
 """
 from __future__ import annotations
 
@@ -21,6 +22,18 @@ from risk_engine import compute_canonical_data_hash, compute_scores
 router = APIRouter(tags=["Verification"])
 
 CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x358925c5839a36bB2181786B8763Da0653B0f438")
+RPC_URL = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
+
+EXTENDED_ABI_JSON = '''[
+    {"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8[7]","name":"_scores","type":"uint8[7]"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"},{"internalType":"bytes32","name":"_aiDigest","type":"bytes32"},{"internalType":"address[]","name":"_signers","type":"address[]"},{"internalType":"bytes[]","name":"_signatures","type":"bytes[]"}],"name":"saveRiskReportMultiSigned","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"},{"internalType":"bytes32","name":"_aiDigest","type":"bytes32"}],"name":"saveRiskReportWithDigest","outputs":[],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[],"name":"reportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"verifiedProofCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"VERSION","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"oracleSigner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+]'''
+CONTRACT_ABI_ONCHAIN = json.loads(EXTENDED_ABI_JSON)
 
 
 # ── Models ──────────────────────────────────────────────────────
@@ -144,3 +157,36 @@ def api_methodology():
         "provenance": "keccak256(canonical_json(sorted_inputs)) stored on-chain in CreditPulseASC.sol",
         "precompile": "0x0000000000000000000000000000000000000FD2 (Attestcoin Native Query Verifier)",
     }
+
+
+@router.get("/api/stats/onchain", tags=["Recording"])
+def api_stats_onchain():
+    """Fetch live on-chain protocol counters directly from CreditPulseASC.sol on CC3."""
+    try:
+        w3 = Web3(Web3.HTTPProvider(RPC_URL))
+        contract = w3.eth.contract(address=CONTRACT_ADDRESS, abi=CONTRACT_ABI_ONCHAIN)
+
+        report_count = contract.functions.reportCount().call()
+        verified_proof_count = contract.functions.verifiedProofCount().call()
+        version = contract.functions.VERSION().call()
+        owner = contract.functions.owner().call()
+        oracle = contract.functions.oracleSigner().call()
+
+        return {
+            "connected": True,
+            "contract_address": CONTRACT_ADDRESS,
+            "network": "Creditcoin Testnet CC3 (Chain 102031)",
+            "version": version,
+            "total_reports_onchain": report_count,
+            "verified_crosschain_proofs": verified_proof_count,
+            "contract_owner": owner,
+            "oracle_signer": oracle,
+            "block_number": w3.eth.block_number,
+            "blockscout_url": f"https://creditcoin-testnet.blockscout.com/address/{CONTRACT_ADDRESS}"
+        }
+    except Exception as e:
+        return {
+            "connected": False,
+            "contract_address": CONTRACT_ADDRESS,
+            "error": str(e)
+        }
