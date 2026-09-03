@@ -40,10 +40,8 @@ const sdk = new CreditPulseSDK("https://rpc.cc3-testnet.creditcoin.network");
 
 async function checkAsset(assetAddress: string) {
   const report = await sdk.getRiskReport(assetAddress);
-  console.log(\`Credit Rating: \${report.overall}/100\`);
   
   const terms = sdk.calculateLoanTerms(report.overall);
-  console.log(\`Approved Tier: \${terms.tier} | Max LTV: \${terms.ltvPercent}% | APR: \${terms.aprPercent}%\`);
 }`,
     python: `from web3 import Web3
 

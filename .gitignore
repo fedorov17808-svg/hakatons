@@ -64,3 +64,18 @@ yarn-error.log*
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# SQLite Database (persistent storage)
+*.db
+*.db-wal
+*.db-shm
+backend/data/
+
+# TLS/mTLS certificates and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+backend/nodes/certs/
+!backend/nodes/certs/README.md

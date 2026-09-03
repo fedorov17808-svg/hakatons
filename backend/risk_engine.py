@@ -50,7 +50,7 @@ def fetch_defillama_data():
 
     url = "https://api.llama.fi/protocols"
     try:
-        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/7.2'}, timeout=12)
+        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/8.5'}, timeout=12)
         if resp.status_code == 200:
             data = resp.json()
             try:
@@ -93,7 +93,7 @@ def get_protocols_cached():
 
 def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[float], category: str, audits: str, chains_count: int, listed_at: int, snapshot_time: Optional[int] = None) -> dict:
     """
-    Deterministic institutional scoring engine — single source of truth (v7.2.0 Enterprise).
+    Deterministic institutional scoring engine — single source of truth (v8.5.0 Enterprise).
     Includes:
     1. Protocol Seasoning & Lindy Maturity Curve (M_seasoning)
     2. Anti-TVL-Spike TWAP Surge Damping (detects >25% daily TVL surges;
@@ -232,19 +232,21 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     is_lrt = cat in ["liquid restaking", "lrt", "lst", "liquid staking", "restaking"]
     if is_rwa:
         weighted_raw = (
-            collateral * 0.35 +
-            governance * 0.25 +
+            collateral * 0.30 +
+            governance * 0.20 +
             audit * 0.15 +
             liquidity * 0.15 +
+            security * 0.10 +
             volatility_score * 0.10
         )
     elif is_lrt:
         weighted_raw = (
             collateral * 0.25 +
             security * 0.25 +
-            liquidity * 0.25 +
+            liquidity * 0.20 +
             volatility_score * 0.15 +
-            governance * 0.10
+            governance * 0.10 +
+            audit * 0.05
         )
     elif cat in ["lending", "cdp"]:
         weighted_raw = (
@@ -256,7 +258,14 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
             audit * 0.05
         )
     else:
-        weighted_raw = (liquidity + collateral + security + volatility_score + governance + audit) / 6.0
+        weighted_raw = (
+            collateral * 0.17 +
+            security * 0.17 +
+            liquidity * 0.17 +
+            volatility_score * 0.17 +
+            governance * 0.16 +
+            audit * 0.16
+        )
 
     circuit_breaker_active = False
     circuit_breaker_reason = None
@@ -287,19 +296,21 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
     # Sector-adaptive weight profile used
     if is_rwa:
         weight_profile = {
-            "collateral": 0.35,
-            "governance": 0.25,
+            "collateral": 0.30,
+            "governance": 0.20,
             "audit": 0.15,
             "liquidity": 0.15,
+            "security": 0.10,
             "volatility": 0.10,
         }
     elif is_lrt:
         weight_profile = {
             "collateral": 0.25,
             "security": 0.25,
-            "liquidity": 0.25,
+            "liquidity": 0.20,
             "volatility": 0.15,
             "governance": 0.10,
+            "audit": 0.05,
         }
     elif cat in ["lending", "cdp"]:
         weight_profile = {
@@ -312,12 +323,12 @@ def compute_scores(tvl: float, change_1d: Optional[float], change_7d: Optional[f
         }
     else:
         weight_profile = {
-            "liquidity": round(1.0 / 6.0, 3),
-            "collateral": round(1.0 / 6.0, 3),
-            "security": round(1.0 / 6.0, 3),
-            "volatility": round(1.0 / 6.0, 3),
-            "governance": round(1.0 / 6.0, 3),
-            "audit": round(1.0 / 6.0, 3),
+            "collateral": 0.17,
+            "security": 0.17,
+            "liquidity": 0.17,
+            "volatility": 0.17,
+            "governance": 0.16,
+            "audit": 0.16,
         }
 
     return {
@@ -375,12 +386,41 @@ KNOWN_CONTRACTS = {
     "0xdd50c053c096cb04a3e3362e2b622529ec5f2e8a": ["openeden"],
 }
 
+_DYNAMIC_ADDRESS_INDEX: Dict[str, Any] = {}
+
+def build_dynamic_protocol_index(protocols: list) -> Dict[str, Any]:
+    """Build fast O(1) address lookup index from full DeFiLlama protocols database (4000+ protocols)."""
+    global _DYNAMIC_ADDRESS_INDEX
+    index = {}
+    for p in protocols:
+        if not isinstance(p, dict):
+            continue
+        p_addr = p.get("address")
+        if p_addr and isinstance(p_addr, str):
+            index[p_addr.lower()] = p
+        chain_tvls = p.get("chainTvls", {})
+        if isinstance(chain_tvls, dict):
+            for chain, data in chain_tvls.items():
+                if isinstance(data, dict):
+                    data_addr = data.get("address")
+                    if data_addr and isinstance(data_addr, str):
+                        index[data_addr.lower()] = p
+    _DYNAMIC_ADDRESS_INDEX = index
+    return index
+
 def find_protocol(protocols: list, address: str):
-    """Find a protocol from the list using contract address or known mappings."""
+    """
+    Find a protocol from the catalog using:
+    1. Known flagship contract aliases
+    2. Fast dynamic O(1) address index across all 4000+ DeFiLlama protocols
+    3. Direct catalog address matching
+    4. Multi-chain deployment address resolution
+    """
     if not protocols or not address:
         return None
     addr_lower = address.lower()
     
+    # 1. Check known flagship contract mappings
     slug_targets = KNOWN_CONTRACTS.get(addr_lower)
     if slug_targets:
         if isinstance(slug_targets, str):
@@ -392,12 +432,23 @@ def find_protocol(protocols: list, address: str):
                     if p_slug == target or target in p_slug:
                         return p
 
+    # 2. Dynamic O(1) address index lookup
+    if _DYNAMIC_ADDRESS_INDEX:
+        if addr_lower in _DYNAMIC_ADDRESS_INDEX:
+            return _DYNAMIC_ADDRESS_INDEX[addr_lower]
+    else:
+        build_dynamic_protocol_index(protocols)
+        if addr_lower in _DYNAMIC_ADDRESS_INDEX:
+            return _DYNAMIC_ADDRESS_INDEX[addr_lower]
+
+    # 3. Direct catalog traversal fallback
     for p in protocols:
         if isinstance(p, dict):
             p_addr = p.get("address")
             if p_addr and isinstance(p_addr, str) and p_addr.lower() == addr_lower:
                 return p
             
+    # 4. Multi-chain chainTvls traversal fallback
     for p in protocols:
         if isinstance(p, dict):
             chain_tvls = p.get("chainTvls", {})
@@ -452,16 +503,16 @@ def get_live_token_prices() -> Dict[str, float]:
     url = f"https://coins.llama.fi/prices/current/{coins_query}"
     
     prices = {
-        "ETH": 2600.0,
+        "ETH": 2500.0,
         "USDC": 1.0,
         "USDT": 1.0,
         "DAI": 1.0,
-        "WETH": 2600.0,
-        "WBTC": 65000.0,
-        "stETH": 2600.0
+        "WETH": 2500.0,
+        "WBTC": 85000.0,
+        "stETH": 2500.0
     }
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "CreditPulseAI/7.2"})
+        req = urllib.request.Request(url, headers={"User-Agent": "CreditPulseAI/8.5"})
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode())
             coins = data.get("coins", {})
@@ -492,7 +543,7 @@ def inspect_onchain_contract(address: str) -> Dict[str, Any]:
         checksum_addr = address
 
     prices = get_live_token_prices()
-    eth_price = prices.get("ETH", 2600.0)
+    eth_price = prices.get("ETH", 2500.0)
 
     for rpc in ETH_MAINNET_RPCS:
         try:
@@ -537,12 +588,63 @@ def inspect_onchain_contract(address: str) -> Dict[str, Any]:
             ])
             has_erc20_interface = "70a08231" in code_hex and "a9059cbb" in code_hex
 
-            verified_audit_tier = "0"
+            # Honest labeling: on-chain bytecode analysis CANNOT determine
+            # if a contract has been audited. Proxy pattern and bytecode size
+            # are indicators of complexity, not audit status.
+            # Only DeFiLlama-indexed protocols carry real audit metadata.
+            verified_audit_tier = "0"  # Unverified — no indexed audit data
+
+            # Real On-Chain Governance Introspection:
+            # 1. Gnosis Safe detection: getThreshold() -> 0xe75235b8, getOwners() -> 0xa0e67e2b
+            # 2. TimelockController detection: getMinDelay() -> 0x2da8e154
+            # 3. Ownable inspection: owner() -> 0x8da5cb5b (checking if owner is contract vs EOA)
+            gov_type = "Standard / Unspecified"
+            gov_multisig_threshold = None
+            gov_owner_addr = None
+            gov_is_contract_governed = False
+
             if is_contract:
-                if is_proxy or has_erc20_interface or bytecode_len > 4000:
-                    verified_audit_tier = "1"
-                if is_proxy and bytecode_len > 6000:
-                    verified_audit_tier = "2"
+                # 1. Check Gnosis Safe
+                try:
+                    threshold_call = w3.eth.call({"to": checksum_addr, "data": "0xe75235b8"})
+                    if threshold_call and len(threshold_call) == 32:
+                        t_val = int.from_bytes(threshold_call, byteorder="big")
+                        if 0 < t_val <= 50:
+                            gov_type = f"Gnosis Safe Multi-Sig ({t_val}-of-N)"
+                            gov_multisig_threshold = t_val
+                            gov_is_contract_governed = True
+                except Exception:
+                    pass
+
+                # 2. Check Timelock
+                if not gov_is_contract_governed:
+                    try:
+                        delay_call = w3.eth.call({"to": checksum_addr, "data": "0x2da8e154"})
+                        if delay_call and len(delay_call) == 32:
+                            d_val = int.from_bytes(delay_call, byteorder="big")
+                            if 0 < d_val < 365 * 86400:
+                                gov_type = f"Timelock Controller ({d_val}s delay)"
+                                gov_is_contract_governed = True
+                    except Exception:
+                        pass
+
+                # 3. Check owner()
+                if not gov_is_contract_governed:
+                    try:
+                        owner_call = w3.eth.call({"to": checksum_addr, "data": "0x8da5cb5b"})
+                        if owner_call and len(owner_call) >= 32:
+                            owner_bytes = owner_call[-20:]
+                            owner_hex = "0x" + owner_bytes.hex()
+                            if owner_hex != "0x0000000000000000000000000000000000000000":
+                                gov_owner_addr = Web3.to_checksum_address(owner_hex)
+                                owner_code = w3.eth.get_code(gov_owner_addr)
+                                if len(owner_code) > 0:
+                                    gov_type = f"Contract-Governed (Owner: {gov_owner_addr[:6]}...{gov_owner_addr[-4:]})"
+                                    gov_is_contract_governed = True
+                                else:
+                                    gov_type = f"EOA-Governed (Owner: {gov_owner_addr[:6]}...{gov_owner_addr[-4:]})"
+                    except Exception:
+                        pass
 
             return {
                 "is_contract": is_contract,
@@ -554,6 +656,10 @@ def inspect_onchain_contract(address: str) -> Dict[str, Any]:
                 "est_tvl": round(total_est_tvl, 2),
                 "is_proxy": is_proxy,
                 "verified_audit_tier": verified_audit_tier,
+                "governance_type": gov_type,
+                "governance_multisig_threshold": gov_multisig_threshold,
+                "governance_owner": gov_owner_addr,
+                "is_contract_governed": gov_is_contract_governed,
                 "rpc_used": rpc,
                 "live_eth_price": eth_price
             }
@@ -571,6 +677,10 @@ def inspect_onchain_contract(address: str) -> Dict[str, Any]:
         "est_tvl": 0.0,
         "is_proxy": False,
         "verified_audit_tier": "0",
+        "governance_type": "Offline / Unreachable",
+        "governance_multisig_threshold": None,
+        "governance_owner": None,
+        "is_contract_governed": False,
         "rpc_used": "offline",
         "live_eth_price": eth_price
     }
@@ -592,7 +702,7 @@ def fetch_dexscreener_token_data(address: str) -> Optional[Dict[str, Any]]:
             
     url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
     try:
-        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/7.2'}, timeout=4)
+        resp = requests.get(url, headers={'User-Agent': 'CreditPulseAI/8.5'}, timeout=4)
         if resp.status_code == 200:
             data = resp.json()
             pairs = data.get("pairs") or []
@@ -632,22 +742,32 @@ def fetch_dexscreener_token_data(address: str) -> Optional[Dict[str, Any]]:
         logger.debug(f"DexScreener fetch failed for {address}: {e}")
     return None
 
-def get_multi_source_asset_data(address: str, snapshot_time: Optional[int] = None) -> Dict[str, Any]:
+def get_multi_source_asset_data(address: str, snapshot_time: Optional[int] = None, primary_source: str = "defillama") -> Dict[str, Any]:
     """
     Multi-Source Decentralized Oracle Aggregator (DeFiLlama + DexScreener + On-Chain EVM RPC).
     Eliminates Single Point of Failure (SPOF) and verifies cross-source data integrity across all nodes.
+
+    primary_source: Controls which data source is tried FIRST by this node.
+      - "defillama" (default): DeFiLlama catalog → DexScreener fallback
+      - "dexscreener": DexScreener pools → DeFiLlama fallback
+      - "rpc": Live on-chain RPC → DexScreener fallback
+    This creates genuine source diversity across DON nodes.
     """
     now_snapshot = snapshot_time if snapshot_time else int(time.time())
     sources_used = []
 
-    # 1. Primary Source: DeFiLlama Catalog
+    # Source-aware fetching: each node can prioritize a different source
     protocols = get_protocols_cached()
     protocol = find_protocol(protocols, address) if protocols else None
-    
-    # 2. Secondary Source: DexScreener DEX Pool Aggregator
     dex_data = fetch_dexscreener_token_data(address)
-    
-    if protocol:
+
+    # When primary_source is "dexscreener" and DEX data is available,
+    # use DEX pools as primary and skip DeFiLlama catalog lookup.
+    use_dex_primary = (primary_source == "dexscreener" and dex_data and dex_data.get("total_liquidity_usd", 0) > 0)
+    # When primary_source is "rpc", skip catalog and use on-chain data directly.
+    use_rpc_primary = (primary_source == "rpc")
+
+    if protocol and not use_dex_primary and not use_rpc_primary:
         sources_used.append("DeFiLlama Protocol Feeds")
         protocol_name = protocol.get("name", "Unknown Protocol")
         tvl = float(protocol.get("tvl", 0) or 0)
@@ -742,5 +862,6 @@ def get_multi_source_asset_data(address: str, snapshot_time: Optional[int] = Non
         "is_contract": is_contract,
         "sources_used": sources_used,
         "dex_telemetry": dex_data,
+        "onchain_telemetry": onchain_info if not (protocol and not use_dex_primary and not use_rpc_primary) else None,
         "market_benchmark": tvl
     }

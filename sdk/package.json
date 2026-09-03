@@ -1,11 +1,17 @@
 {
   "name": "@creditpulse/sdk",
   "version": "1.0.0",
-  "description": "Official TypeScript & JavaScript Developer SDK for CreditPulse AI Institutional Credit Scoring on Creditcoin CC3",
+  "description": "Official TypeScript & JavaScript Developer SDK for CreditPulse AI — Institutional-Grade Credit Risk Scoring on Creditcoin CC3",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "tsc && node dist/test.js"
   },
   "keywords": [
@@ -14,10 +20,28 @@
     "rwa",
     "defi",
     "oracle",
-    "zktls"
+    "zktls",
+    "risk-assessment",
+    "merton-model",
+    "monte-carlo",
+    "blockchain",
+    "web3",
+    "lending",
+    "insurance"
   ],
   "author": "CreditPulse AI Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/creditpulse/sdk"
+  },
+  "homepage": "https://creditpulse.ai",
+  "bugs": {
+    "url": "https://github.com/creditpulse/sdk/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "ethers": "^6.13.0"
   },

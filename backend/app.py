@@ -1,4 +1,4 @@
-# CreditPulse AI Engine — Autonomous RWA Risk Assessment & Credit Scoring (v7.2.0 Enterprise)
+# CreditPulse AI Engine — Autonomous RWA Risk Assessment & Credit Scoring (v8.0.0 Enterprise)
 from __future__ import annotations
 import json
 import logging
@@ -8,7 +8,6 @@ import re
 import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
-import urllib.request
 import uuid
 
 from dotenv import load_dotenv
@@ -38,107 +37,29 @@ from zktls.verifier import ZkTLSEngine
 from quant_risk import QuantRiskEngine
 from nodes.bls_quorum import BLSQuorumEngine
 from cross_chain_relayer import CrossChainRelayer
+from services.state import app_state
+import storage
+from services.ai_narrative import generate_risk_narrative as _generate_risk_narrative
 
 load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 
-SERVER_START_TIME = time.time()
-_stats_lock = threading.Lock()
-STATS = {
-    'total_analyses': 0,
-    'total_records': 0
-}
 
-# --- Gemini AI setup (direct REST, no SDK dependency) ---
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-_GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent"
+# AI narrative generation moved to services/ai_narrative.py
+# Imported above as _generate_risk_narrative
 
-def generate_risk_narrative(
-    protocol_name: str,
-    overall: int,
-    tvl: float,
-    category: str,
-    change_1d: float,
-    change_7d: float,
-    chains_count: int,
-    audits: str,
-    verdict: str,
-) -> Tuple[Optional[str], Optional[str], List[str], str]:
-    """Generate institutional qualitative AI risk advisory via Gemini without breaking deterministic score.
-    
-    Returns: (narrative_text, error_msg, risks_list, ai_digest)
-    """
-    if not GEMINI_API_KEY:
-        return None, "GEMINI_API_KEY_MISSING", [], "0x" + "0"*64
-    try:
-        tvl_b = tvl / 1e9 if tvl > 1e9 else tvl / 1e6
-        tvl_unit = "B" if tvl > 1e9 else "M"
-        audited_str = 'Verified Multi-Audit' if str(audits) not in ['0', '2', '', 'None', 'False'] else 'Single/Unverified Audit'
-        is_rwa = any(r in category.lower() for r in ["rwa", "treasuries", "private credit", "real world assets"])
-        
-        asset_context = "Real-World Asset (RWA) / Tokenized Security" if is_rwa else "DeFi Protocol"
-
-        prompt = (
-            f"You are a senior institutional credit risk officer analyzing a {asset_context}.\n"
-            f"Provide qualitative risk factors not captured solely by mechanical TVL.\n\n"
-            f"Asset/Protocol: {protocol_name}\n"
-            f"Category: {category}\n"
-            f"TVL / AUM: ${tvl_b:.2f}{tvl_unit}\n"
-            f"24h Flow: {change_1d:+.2f}%\n"
-            f"7d Flow: {change_7d:+.2f}%\n"
-            f"Multi-Chain Deployment: {chains_count} chains\n"
-            f"Audit Security Track: {audited_str}\n"
-            f"Deterministic Credit Score: {overall}/100 ({verdict})\n\n"
-            f"Return ONLY valid JSON matching this schema:\n"
-            f"{{\n"
-            f'  "risks": [\n'
-            f'    "[HIGH/MED/LOW] Specific risk vector 1 (e.g. Smart Contract, Custody, Governance, Liquidity)",\n'
-            f'    "[HIGH/MED/LOW] Specific risk vector 2",\n'
-            f'    "[HIGH/MED/LOW] Specific risk vector 3"\n'
-            f'  ],\n'
-            f'  "narrative": "Concise 2-sentence institutional credit risk evaluation summary (max 65 words)."\n'
-            f"}}"
-        )
-        
-        payload = json.dumps({
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "response_mime_type": "application/json",
-                "maxOutputTokens": 600,
-                "temperature": 0.2,
-            },
-        }).encode("utf-8")
-        
-        req = urllib.request.Request(
-            f"{_GEMINI_URL}?key={GEMINI_API_KEY}",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-        parts = result["candidates"][0]["content"]["parts"]
-        text = " ".join(p["text"] for p in parts if "text" in p).strip()
-        
-        ai_json = json.loads(text)
-        risks_list = [str(r).strip() for r in ai_json.get("risks", []) if str(r).strip()]
-        narrative = str(ai_json.get("narrative", "")).strip()
-        
-        ai_digest = "0x" + Web3.keccak(text=narrative).hex() if narrative else "0x" + "0"*64
-        return narrative, None, risks_list, ai_digest
-    except Exception as e:
-        logger.warning(f"Gemini narrative generation error: {e}")
-        return None, str(e), [], "0x" + "0"*64
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Modern lifespan handler replacing deprecated @app.on_event('startup')."""
-    logger.info("Initializing CreditPulse AI Engine v7.2.0 Enterprise...")
+    logger.info("Initializing CreditPulse AI Engine v8.0.0 Enterprise...")
     pk = os.getenv("PRIVATE_KEY")
     if not pk or not re.match(r"^(0x)?[a-fA-F0-9]{64}$", pk):
         logger.warning("PRIVATE_KEY not provided or invalid — recording will be restricted.")
@@ -160,7 +81,7 @@ async def lifespan(application: FastAPI):
 
 app = FastAPI(
     title='CreditPulse AI Engine',
-    version='7.2.0',
+    version='8.0.0',
     description='Autonomous RWA Risk Assessment & Credit Scoring Infrastructure on Creditcoin',
     docs_url='/docs',
     redoc_url='/redoc',
@@ -186,7 +107,7 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
-# --- CORS Configuration ---
+# --- CORS Configuration (Hardened) ---
 allowed_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
@@ -198,10 +119,11 @@ allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    # Only allow creditpulse preview deploys, not ANY vercel.app subdomain
+    allow_origin_regex=r"https://creditpulse[a-z0-9-]*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Request-ID"],
 )
 
 def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
@@ -258,7 +180,7 @@ don_coordinator = DONCoordinator(os.getenv("PRIVATE_KEY"))
 
 def _warmup_cache():
     time.sleep(1)
-    logger.info("Pre-warming multi-source cache for demo presets...")
+    logger.info("Pre-warming multi-source cache for institutional presets...")
     presets = [
         "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
         "0xe8684521db5a68778844145ba0a0374d8e95e140",
@@ -320,6 +242,9 @@ class AnalyzeResponse(BaseModel):
     ai_digest: str = ""
     attestation: dict = {}
     provenance: dict = {}
+    sources_used: list = []
+    dex_telemetry: Optional[dict] = None
+    onchain_telemetry: Optional[dict] = None
 
 class RecordResponse(BaseModel):
     success: bool
@@ -330,24 +255,61 @@ class RecordResponse(BaseModel):
 
 @app.get("/health", tags=['System'])
 def health():
-    """Service health check endpoint."""
+    """Service health check with SQLite connectivity verification."""
+    db_ok = False
+    try:
+        db_stats = storage.get_global_stats()
+        db_ok = True
+    except Exception:
+        db_stats = {}
     return {
-        "status": "healthy",
+        "status": "healthy" if db_ok else "degraded",
         "timestamp": int(time.time()),
-        "uptime_seconds": int(time.time() - SERVER_START_TIME),
-        "version": "7.2.0"
+        "uptime_seconds": int(time.time() - app_state.server_start_time),
+        "version": "8.0.0",
+        "storage": {
+            "connected": db_ok,
+            "total_records": db_stats.get("total_scores", 0),
+        }
     }
 
 @app.get("/api/stats", tags=['System'])
 def api_stats():
-    """Retrieve runtime engine analytics and analysis volumes."""
-    with _stats_lock:
-        return {
-            "total_analyses": STATS['total_analyses'],
-            "total_records": STATS['total_records'],
-            "uptime_seconds": int(time.time() - SERVER_START_TIME),
-            "version": "7.2.0"
-        }
+    """Retrieve runtime engine analytics and analysis volumes (includes persistent storage stats)."""
+    runtime_stats = app_state.stats
+    try:
+        db_stats = storage.get_global_stats()
+    except Exception:
+        db_stats = {}
+    return {
+        "total_analyses": runtime_stats['total_analyses'],
+        "total_records": runtime_stats['total_records'],
+        "uptime_seconds": int(time.time() - app_state.server_start_time),
+        "version": "8.0.0",
+        "persistent_storage": db_stats,
+    }
+
+@app.get("/api/history/{address}", tags=['History'])
+def api_history(address: str, limit: int = 50):
+    """
+    Retrieve historical scoring records for an asset from SQLite persistent storage.
+    Returns newest-first, up to `limit` records.
+    """
+    if not re.match(r"^(0x|0X)[a-fA-F0-9]{40}$", address):
+        raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+    history = storage.get_score_history(address, limit=limit)
+    stats = storage.get_score_stats(address)
+    return {
+        "address": address.lower(),
+        "total_records": stats.get("total_scores", 0),
+        "avg_score": round(stats.get("avg_overall", 0) or 0, 1),
+        "min_score": stats.get("min_overall"),
+        "max_score": stats.get("max_overall"),
+        "first_scored_at": stats.get("first_scored_at"),
+        "last_scored_at": stats.get("last_scored_at"),
+        "circuit_breaker_events": stats.get("circuit_breaker_events", 0),
+        "records": history,
+    }
 
 @app.post("/api/analyze", tags=['Analysis'], response_model=AnalyzeResponse)
 @limiter.limit("20/minute")
@@ -360,8 +322,12 @@ def api_analyze(request: Request, req: AnalyzeRequest):
 
 def process_analysis(address: str):
     """Process risk analysis for a given smart contract address."""
-    with _stats_lock:
-        STATS['total_analyses'] += 1
+    # Fix #10: Input validation — reject malformed addresses before processing
+    if not re.match(r"^(0x|0X)[a-fA-F0-9]{40}$", address):
+        raise HTTPException(status_code=400, detail=f"Invalid Ethereum address format: {address}")
+    address = address.lower()  # Normalize to lowercase
+    
+    app_state.increment_analyses()
     start_time = time.time()
     now_snapshot = int(start_time)
     
@@ -414,7 +380,7 @@ def process_analysis(address: str):
     ai_risks = []
     ai_digest = "0x" + "0"*64
     try:
-        ai_narrative, _ai_err, ai_risks, ai_digest = generate_risk_narrative(
+        ai_narrative, _ai_err, ai_risks, ai_digest = _generate_risk_narrative(
             protocol_name=str(protocol_name or "Unknown"),
             overall=int(overall),
             tvl=float(market_benchmark or 0),
@@ -454,6 +420,7 @@ def process_analysis(address: str):
         "data_hash": data_hash,
         "sources_used": asset_data.get("sources_used", []),
         "dex_telemetry": asset_data.get("dex_telemetry"),
+        "onchain_telemetry": asset_data.get("onchain_telemetry"),
         "ai_powered": bool(GEMINI_API_KEY),
         "ai_narrative": ai_narrative,
         "ai_risks": ai_risks if ai_risks else [
@@ -488,6 +455,20 @@ def process_analysis(address: str):
         "scoring_breakdown": scores.get("scoring_breakdown", {}),
         "seasoning_score": scores.get("seasoning_score", 100),
     }
+
+    # Persist to SQLite append-only ledger
+    try:
+        storage.record_score(
+            asset_address=address,
+            protocol_name=protocol_name,
+            scores=scores,
+            data_hash=data_hash,
+            data_sources=asset_data.get("sources_used", []),
+            snapshot_time=now_snapshot,
+        )
+    except Exception as storage_err:
+        logger.warning(f"Storage write failed (non-fatal): {storage_err}")
+
     return response
 
 
@@ -549,8 +530,7 @@ def api_record(request: Request, req: RecordRequest, api_key: str = Depends(veri
     return process_record(req)
 
 def process_record(req: RecordRequest):
-    with _stats_lock:
-        STATS['total_records'] += 1
+    app_state.increment_records()
 
     now = time.time()
     expired = [k for k, v in _recent_records.items() if (now - v) > RECORD_COOLDOWN * 10]
@@ -618,8 +598,7 @@ def api_record_don(request: Request, req: RecordRequest, api_key: str = Depends(
     return process_record_don(req)
 
 def process_record_don(req: RecordRequest):
-    with _stats_lock:
-        STATS['total_records'] += 1
+    app_state.increment_records()
 
     if not PRIVATE_KEY:
         raise HTTPException(status_code=500, detail="Server misconfiguration: missing private key")
@@ -1091,7 +1070,7 @@ def api_zktls_attest(req: ZkTLSRARequest):
 
 # --- Extracted route modules: routes/verification.py, routes/attestcoin.py, routes/quant_and_consensus.py ---
 
-# --- Autonomous Credit Keeper Engine v7.2.0 Enterprise ---
+# --- Autonomous Credit Keeper Engine v8.0.0 Enterprise ---
 DRIFT_THRESHOLD_PTS = 5.0
 HEARTBEAT_CADENCE_SEC = 86400  # 24 hours
 KEEPER_CYCLE_LOCK = threading.Lock()

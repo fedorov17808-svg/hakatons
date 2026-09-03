@@ -6,7 +6,7 @@ attestations. It generates verifiable commitments over custodian API responses
 using a cryptographic blinding factor for computational hiding.
 
 Architecture:
-- Demo Mode: Simulated bank transcript with Keccak256 hash commitments
+- Testnet Mode: Local bank transcript with Keccak256 hash commitments
 - Production: TLSNotary SDK integration for real TLS transcript verification
 
 Commitment scheme:
@@ -65,7 +65,7 @@ class CryptoPoREngine:
     PROOF_TYPE_PRODUCTION = "TLSNOTARY_TRANSCRIPT_PROOF"
 
     # Deployment mode labels
-    DEPLOYMENT_DEMO = "DEMO_SIMULATED_TRANSCRIPT"
+    DEPLOYMENT_TESTNET = "TESTNET_SIMULATED_TRANSCRIPT"
     DEPLOYMENT_PRODUCTION = "PRODUCTION_TLSNOTARY"
 
     # Legacy alias (kept for backward compatibility with existing API consumers)
@@ -152,7 +152,7 @@ class CryptoPoREngine:
         (computational hiding via Keccak256 preimage resistance).
 
         Deployment modes:
-        - DEMO: Simulated bank transcript with hardcoded custodian data.
+        - Testnet: Simulated bank transcript with hardcoded custodian data.
           Commitment scheme is cryptographically real; input data is synthetic.
         - PRODUCTION: TLSNotary SDK replaces simulated transcript with real
           TLS handshake proofs over HTTPS bank API responses.
@@ -162,7 +162,7 @@ class CryptoPoREngine:
         is_solvent = reserve_ratio_bps >= 10000
 
         # Simulated bank transcript payload
-        # NOTE: In demo mode, this data is synthetic. The cryptographic
+        # NOTE: On testnet, this data is synthetic. The cryptographic
         # commitment scheme is real, but the input data is hardcoded.
         # In production, TLSNotary SDK provides authenticated transcripts
         # from actual HTTPS sessions with custodian bank APIs.
@@ -244,7 +244,7 @@ class CryptoPoREngine:
             # Honest proof metadata — no misleading claims
             "proof_type": CryptoPoREngine.PROOF_TYPE_HASH_COMMITMENT,
             "proof_scheme": "Keccak256 hash commitment with cryptographic blinding factor",
-            "deployment_mode": CryptoPoREngine.DEPLOYMENT_DEMO,
+            "deployment_mode": CryptoPoREngine.DEPLOYMENT_TESTNET,
             "proof_properties": {
                 "binding": True,
                 "hiding": True,

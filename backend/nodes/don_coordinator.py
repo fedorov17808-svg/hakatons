@@ -3,7 +3,7 @@ CreditPulse AI — Federated DON Consensus Coordinator v7.2.0 (Physical Decentra
 Aggregates independent oracle validator nodes over HTTP.
 
 Deployment Modes:
-- DEMO_LOCAL: All nodes on localhost (hackathon demo). Architecture is production-ready.
+- TESTNET_LOCAL: All nodes on localhost (hackathon testnet). Architecture is production-ready.
 - PRODUCTION_DISTRIBUTED: Nodes on independent VPS/cloud instances across regions.
 
 Each node independently fetches data, computes scores, and signs attestations.
@@ -20,7 +20,7 @@ from typing import List, Dict, Any
 class DONCoordinator:
     """Federated Decentralized Oracle Network coordinator with configurable endpoints."""
 
-    # Default localhost endpoints for demo mode
+    # Default localhost endpoints for testnet
     _DEFAULT_ENDPOINTS = [
         "http://127.0.0.1:8011",
         "http://127.0.0.1:8012",
@@ -28,11 +28,12 @@ class DONCoordinator:
     ]
 
     def __init__(self, primary_private_key: str = ""):
-        # Read endpoints from environment — allows production multi-VPS deployment
+        # Read endpoints from environment — supports both naming conventions:
+        #   DON_NODE_1_URL / DON_NODE_ALPHA_URL (docker-compose uses ALPHA/BETA/GAMMA)
         self.node_endpoints = [
-            os.getenv("DON_NODE_1_URL", self._DEFAULT_ENDPOINTS[0]),
-            os.getenv("DON_NODE_2_URL", self._DEFAULT_ENDPOINTS[1]),
-            os.getenv("DON_NODE_3_URL", self._DEFAULT_ENDPOINTS[2]),
+            os.getenv("DON_NODE_ALPHA_URL", os.getenv("DON_NODE_1_URL", self._DEFAULT_ENDPOINTS[0])),
+            os.getenv("DON_NODE_BETA_URL", os.getenv("DON_NODE_2_URL", self._DEFAULT_ENDPOINTS[1])),
+            os.getenv("DON_NODE_GAMMA_URL", os.getenv("DON_NODE_3_URL", self._DEFAULT_ENDPOINTS[2])),
         ]
         # Filter out empty strings from env
         self.node_endpoints = [ep for ep in self.node_endpoints if ep.strip()]
@@ -48,7 +49,7 @@ class DONCoordinator:
             any(local in ep for local in ["127.0.0.1", "localhost", "0.0.0.0"])
             for ep in self.node_endpoints
         )
-        self.deployment_mode = "DEMO_LOCAL" if all_local else "PRODUCTION_DISTRIBUTED"
+        self.deployment_mode = "TESTNET_LOCAL" if all_local else "PRODUCTION_DISTRIBUTED"
 
         # Real latency tracking per node
         self._node_latencies: Dict[str, float] = {}
@@ -91,10 +92,10 @@ class DONCoordinator:
             "consensus_standard": "BFT Threshold Quorum (M-of-N)",
             "deployment_mode": self.deployment_mode,
             "deployment_note": (
-                "Demo mode: nodes running on localhost with independent key pairs and "
+                "Testnet: nodes running on localhost with independent key pairs and "
                 "independent score re-computation. Production deployment replaces "
                 "DON_NODE_*_URL env vars with distributed VPS instances."
-                if self.deployment_mode == "DEMO_LOCAL"
+                if self.deployment_mode == "TESTNET_LOCAL"
                 else "Production mode: nodes distributed across independent infrastructure."
             ),
             "nodes": node_healths,

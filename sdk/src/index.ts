@@ -280,6 +280,54 @@ export class CreditPulseSDK {
   }
 
   // =============================================================
+  // 1-Click Pull-Oracle & Precompile Integration
+  // =============================================================
+
+  /**
+   * 1-Click Pull SDK: originate an undercollateralized loan with an atomic DON quorum proof.
+   * Enables consumer protocols to update oracle state and originate loans in 1 single tx.
+   */
+  async pullScoreAndOriginateLoan(
+    lendingPoolAddress: string,
+    signer: ethers.Signer,
+    collateralAsset: string,
+    collateralAmountWei: bigint,
+    reportPayload: {
+      scores: [number, number, number, number, number, number, number];
+      dataHash: string;
+      aiDigest: string;
+      signers: string[];
+      signatures: string[];
+    }
+  ): Promise<ethers.TransactionResponse> {
+    const LENDING_POOL_ABI = [
+      "function borrowWithOracleProof(address _collateralAsset, uint256 _collateralAmount, uint8[7] calldata _scores, bytes32 _dataHash, bytes32 _aiDigest, address[] calldata _signers, bytes[] calldata _signatures) external payable returns (uint256)"
+    ];
+    const pool = new ethers.Contract(lendingPoolAddress, LENDING_POOL_ABI, signer);
+    return pool.borrowWithOracleProof(
+      collateralAsset,
+      collateralAmountWei,
+      reportPayload.scores,
+      reportPayload.dataHash,
+      reportPayload.aiDigest,
+      reportPayload.signers,
+      reportPayload.signatures
+    );
+  }
+
+  /**
+   * Direct hardware verification via Creditcoin CC3 Native Query Verifier Precompile 0x0FD2.
+   * Performs zero-bridge cross-chain transaction verification natively on Creditcoin CC3.
+   */
+  async verifyCC3Precompile(proofBytes: string): Promise<string> {
+    const CC3_PRECOMPILE_ADDR = "0x0000000000000000000000000000000000000FD2";
+    return this.provider.call({
+      to: CC3_PRECOMPILE_ADDR,
+      data: proofBytes
+    });
+  }
+
+  // =============================================================
   // Batch Operations
   // =============================================================
 

@@ -45,4 +45,14 @@ interface ICreditPulse {
 
     /// @notice Direct query for overall score (0-100)
     function getOverallScore(address _assetAddress) external view returns (uint8);
+
+    /// @notice Pull-Oracle: Submit signed DON quorum report and update score atomically
+    function saveRiskReportMultiSigned(
+        address _assetAddress,
+        uint8[7] calldata _scores,
+        bytes32 _dataHash,
+        bytes32 _aiDigest,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external;
 }

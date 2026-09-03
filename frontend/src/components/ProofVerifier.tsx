@@ -2,20 +2,34 @@
 
 import React, { useState } from "react";
 
+interface CurrentAnalysisData {
+  address: string;
+  score: number;
+  liquidity: number;
+  collateral: number;
+  audit: number;
+  security: number;
+  volatility: number;
+  governance: number;
+  dataHash: string;
+}
+
 interface ProofVerifierProps {
   apiUrl: string;
+  currentAnalysis?: CurrentAnalysisData | null;
 }
 
 interface ProofStats {
-  merkle_siblings: number;
-  continuity_roots: number;
-  tx_bytes_size: number;
+  merkle_siblings?: number;
+  continuity_roots?: number;
+  tx_bytes_size?: number;
   merkle_root?: string;
   lower_endpoint?: string;
 }
 
 interface AttestcoinResult {
   verified: boolean;
+  deterministic_commitment?: boolean;
   query_id: string;
   block_number: number;
   source_chain_key: number;
@@ -23,9 +37,10 @@ interface AttestcoinResult {
   precompile: string;
   proof_stats: ProofStats;
   verification_mode: string;
+  deployment_note?: string;
 }
 
-export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
+export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAnalysis }) => {
   const [attestcoinTxHash, setAttestcoinTxHash] = useState("0xbc1aefc42f7bc5897e7693e815831729dc401877df182b137ab3bf06edeaf0e1");
   const [attestcoinLoading, setAttestcoinLoading] = useState(false);
   const [attestcoinResult, setAttestcoinResult] = useState<AttestcoinResult | null>(null);
@@ -46,15 +61,15 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          address: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
-          score: 88,
-          liquidity: 90,
-          collateral: 85,
-          audit: 95,
-          security: 88,
-          volatility: 82,
-          governance: 85,
-          data_hash: "0x41b4ad0faa2c1414e08c02c6fe711e9f1a23e93a7726487e416a41f649887711",
+          address: currentAnalysis?.address || "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2",
+          score: currentAnalysis?.score ?? 88,
+          liquidity: currentAnalysis?.liquidity ?? 90,
+          collateral: currentAnalysis?.collateral ?? 85,
+          audit: currentAnalysis?.audit ?? 95,
+          security: currentAnalysis?.security ?? 88,
+          volatility: currentAnalysis?.volatility ?? 82,
+          governance: currentAnalysis?.governance ?? 85,
+          data_hash: currentAnalysis?.dataHash || "",
           source_tx_hash: attestcoinResult.tx_hash
         })
       });
@@ -111,7 +126,7 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
           <div>
             <div className="flex items-center gap-3">
               <h3 className="text-2xl font-bold text-white tracking-tight">Attestcoin Cryptographic Verifier</h3>
-              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-mono">v5.0 Strict</span>
+              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-mono">v8.0.0 Enterprise</span>
             </div>
             <p className="text-indigo-300/80 text-sm mt-1">
               Trustlessly prove source chain transaction inclusion via Creditcoin Native Query Verifier Precompile <code className="bg-indigo-500/10 px-1.5 py-0.5 rounded text-indigo-300 text-xs font-mono">0x0FD2</code>
@@ -170,7 +185,7 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
 
         <div className="flex items-center justify-between text-xs text-slate-500 mb-6 flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-400">Attested Presets:</span>
+            <span className="font-semibold text-slate-400">Testnet Attestation TX Examples (CC3 Blockscout):</span>
             <button
               type="button"
               onClick={() => {
@@ -219,13 +234,25 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
         )}
 
         {attestcoinResult && (
-          <div className="bg-emerald-950/30 border border-emerald-500/40 rounded-2xl p-6 space-y-5 animate-fade-in">
+          <div className={`${attestcoinResult.deterministic_commitment ? 'bg-amber-950/20 border-amber-500/30' : 'bg-emerald-950/30 border-emerald-500/40'} border rounded-2xl p-6 space-y-5 animate-fade-in`}>
+            {attestcoinResult.deployment_note && (
+              <div className="bg-blue-950/40 border border-blue-500/30 rounded-lg p-3 text-xs text-blue-300/90 leading-relaxed">
+                <span className="font-bold">🔗 Testnet Attestation:</span> {attestcoinResult.deployment_note}
+              </div>
+            )}
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center text-xl">✅</div>
+                <div className={`w-10 h-10 ${attestcoinResult.verified ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-amber-500/20 border-amber-500/40'} border rounded-full flex items-center justify-center text-xl`}>{attestcoinResult.verified ? '✅' : '🔶'}</div>
                 <div>
-                  <div className="text-emerald-400 font-bold text-lg">Cryptographic Proof Verified & Bound!</div>
-                  <div className="text-slate-400 text-xs">Sepolia (Chain 1) → Creditcoin CC3 · Block #{attestcoinResult.block_number?.toLocaleString()}</div>
+                  <div className={`${attestcoinResult.verified ? 'text-emerald-400' : 'text-amber-400'} font-bold text-lg`}>
+                    {attestcoinResult.verified ? 'Cryptographic Proof Verified & Bound!' : 'Deterministic Commitment Generated'}
+                  </div>
+                  <div className="text-slate-400 text-xs flex items-center gap-2">
+                    <span>Sepolia (Chain 1) → Creditcoin CC3 · Block #{attestcoinResult.block_number?.toLocaleString()}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${attestcoinResult.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      {attestcoinResult.verification_mode}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
@@ -239,15 +266,15 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl }) => {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700/50">
-                <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.merkle_siblings}</div>
+                <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.merkle_siblings ?? '—'}</div>
                 <div className="text-xs text-slate-400 mt-1">Merkle Siblings</div>
               </div>
               <div className="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700/50">
-                <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.continuity_roots}</div>
+                <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.continuity_roots ?? '—'}</div>
                 <div className="text-xs text-slate-400 mt-1">Continuity Roots</div>
               </div>
               <div className="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700/50">
-                <div className="text-2xl font-bold text-white">{(attestcoinResult.proof_stats.tx_bytes_size / 1024).toFixed(1)} KB</div>
+                <div className="text-2xl font-bold text-white">{attestcoinResult.proof_stats.tx_bytes_size ? `${(attestcoinResult.proof_stats.tx_bytes_size / 1024).toFixed(1)} KB` : '—'}</div>
                 <div className="text-xs text-slate-400 mt-1">TX Data Bound</div>
               </div>
               <div className="bg-slate-800/60 rounded-xl p-3 text-center border border-slate-700/50">

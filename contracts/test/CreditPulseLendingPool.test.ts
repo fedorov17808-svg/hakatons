@@ -100,4 +100,40 @@ describe("CreditPulseLendingPool Integration", function () {
     expect(loan.interestRateBps).to.equal(450);
     expect(loan.creditScoreAtBorrow).to.equal(88);
   });
+
+  it("should atomically update oracle rating and originate loan via borrowWithOracleProof", async function () {
+    const newAsset = ethers.getAddress("0x51563f68cc66b7d2db894ca3c224213cb5fe0282");
+    const newScores: [number, number, number, number, number, number, number] = [80, 85, 80, 80, 80, 75, 80];
+    const dataHash = ethers.keccak256(ethers.toUtf8Bytes("PULL_DATA_HASH"));
+    const aiDigest = ethers.keccak256(ethers.toUtf8Bytes("AI_DIGEST"));
+
+    await creditPulse.setOracleAuthorization(oracle1.address, true);
+
+    const sig1 = await generateSignature(deployer, newAsset, newScores, dataHash);
+    const sig2 = await generateSignature(oracle1, newAsset, newScores, dataHash);
+
+    // Sort signers and signatures in ascending address order as required by contract
+    const signersList = [
+      { addr: deployer.address, sig: sig1 },
+      { addr: oracle1.address, sig: sig2 }
+    ].sort((a, b) => (BigInt(a.addr) < BigInt(b.addr) ? -1 : 1));
+
+    const collateral = ethers.parseEther("5");
+
+    const tx = await lendingPool.connect(borrower).borrowWithOracleProof(
+      newAsset,
+      collateral,
+      newScores,
+      dataHash,
+      aiDigest,
+      signersList.map(s => s.addr),
+      signersList.map(s => s.sig)
+    );
+    await tx.wait();
+
+    const loan = await lendingPool.loans(1);
+    expect(loan.borrower).to.equal(borrower.address);
+    expect(loan.creditScoreAtBorrow).to.equal(80);
+    expect(loan.borrowedAmount).to.equal(ethers.parseEther("4")); // 80% of 5 = 4 ETH
+  });
 });

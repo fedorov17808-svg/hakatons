@@ -1,0 +1,214 @@
+[
+  {
+    "incident": "Terra/LUNA Death Spiral",
+    "date": "May 7-13, 2022",
+    "severity": "CATASTROPHIC",
+    "pre_score": 82,
+    "during_score": 45,
+    "post_score": 45,
+    "score_drop": 37,
+    "circuit_breaker_fired": true,
+    "circuit_breaker_reason": "Circuit Breaker Triggered: Severe capital outflow / Bank Run detected (24h: -45.0%, 7d: -72.0%).",
+    "bank_run_detected": true,
+    "liquidity_spike_detected": false,
+    "pre_in_expected_range": true,
+    "cb_matches_expected": true,
+    "post_below_max": true,
+    "all_passed": true,
+    "details": {
+      "pre": {
+        "overall": 82,
+        "liquidity": 100,
+        "collateral": 73,
+        "security": 76,
+        "volatility_score": 87,
+        "governance": 71,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false
+      },
+      "during": {
+        "overall": 45,
+        "liquidity": 93,
+        "collateral": 43,
+        "security": 76,
+        "volatility_score": 0,
+        "governance": 71,
+        "audit": 100,
+        "bank_run_detected": true,
+        "circuit_breaker_active": true,
+        "circuit_breaker_reason": "Circuit Breaker Triggered: Severe capital outflow / Bank Run detected (24h: -45.0%, 7d: -72.0%)."
+      },
+      "post": {
+        "overall": 45,
+        "liquidity": 76,
+        "collateral": 43,
+        "security": 76,
+        "volatility_score": 0,
+        "governance": 70,
+        "audit": 100,
+        "bank_run_detected": true,
+        "circuit_breaker_active": true
+      }
+    }
+  },
+  {
+    "incident": "FTX/Alameda Contagion",
+    "date": "Nov 6-11, 2022",
+    "severity": "CATASTROPHIC",
+    "pre_score": 87,
+    "during_score": 67,
+    "post_score": 45,
+    "score_drop": 42,
+    "circuit_breaker_fired": true,
+    "circuit_breaker_reason": null,
+    "bank_run_detected": false,
+    "liquidity_spike_detected": false,
+    "pre_in_expected_range": true,
+    "cb_matches_expected": true,
+    "post_below_max": true,
+    "all_passed": true,
+    "details": {
+      "pre": {
+        "overall": 87,
+        "liquidity": 95,
+        "collateral": 82,
+        "security": 80,
+        "volatility_score": 92,
+        "governance": 94,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false
+      },
+      "during": {
+        "overall": 67,
+        "liquidity": 89,
+        "collateral": 50,
+        "security": 80,
+        "volatility_score": 0,
+        "governance": 94,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": true,
+        "circuit_breaker_reason": null
+      },
+      "post": {
+        "overall": 45,
+        "liquidity": 80,
+        "collateral": 50,
+        "security": 80,
+        "volatility_score": 0,
+        "governance": 93,
+        "audit": 100,
+        "bank_run_detected": true,
+        "circuit_breaker_active": true
+      }
+    }
+  },
+  {
+    "incident": "SVB Bank Run & USDC Depeg",
+    "date": "Mar 10-13, 2023",
+    "severity": "HIGH",
+    "pre_score": 91,
+    "during_score": 83,
+    "post_score": 84,
+    "score_drop": 7,
+    "circuit_breaker_fired": false,
+    "circuit_breaker_reason": null,
+    "bank_run_detected": false,
+    "liquidity_spike_detected": false,
+    "pre_in_expected_range": true,
+    "cb_matches_expected": true,
+    "post_below_max": true,
+    "all_passed": true,
+    "details": {
+      "pre": {
+        "overall": 91,
+        "liquidity": 100,
+        "collateral": 84,
+        "security": 92,
+        "volatility_score": 99,
+        "governance": 83,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false
+      },
+      "during": {
+        "overall": 83,
+        "liquidity": 100,
+        "collateral": 72,
+        "security": 92,
+        "volatility_score": 56,
+        "governance": 83,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false,
+        "circuit_breaker_reason": null
+      },
+      "post": {
+        "overall": 84,
+        "liquidity": 100,
+        "collateral": 70,
+        "security": 92,
+        "volatility_score": 72,
+        "governance": 83,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false
+      }
+    }
+  },
+  {
+    "incident": "Euler Finance Flash Loan Attack",
+    "date": "Mar 13, 2023",
+    "severity": "CATASTROPHIC",
+    "pre_score": 83,
+    "during_score": 45,
+    "post_score": 45,
+    "score_drop": 38,
+    "circuit_breaker_fired": true,
+    "circuit_breaker_reason": "Circuit Breaker Triggered: Severe capital outflow / Bank Run detected (24h: -96.0%, 7d: -96.0%).",
+    "bank_run_detected": true,
+    "liquidity_spike_detected": false,
+    "pre_in_expected_range": true,
+    "cb_matches_expected": true,
+    "post_below_max": true,
+    "all_passed": true,
+    "details": {
+      "pre": {
+        "overall": 83,
+        "liquidity": 83,
+        "collateral": 82,
+        "security": 76,
+        "volatility_score": 92,
+        "governance": 91,
+        "audit": 100,
+        "bank_run_detected": false,
+        "circuit_breaker_active": false
+      },
+      "during": {
+        "overall": 45,
+        "liquidity": 70,
+        "collateral": 50,
+        "security": 76,
+        "volatility_score": 0,
+        "governance": 89,
+        "audit": 100,
+        "bank_run_detected": true,
+        "circuit_breaker_active": true,
+        "circuit_breaker_reason": "Circuit Breaker Triggered: Severe capital outflow / Bank Run detected (24h: -96.0%, 7d: -96.0%)."
+      },
+      "post": {
+        "overall": 45,
+        "liquidity": 66,
+        "collateral": 50,
+        "security": 76,
+        "volatility_score": 0,
+        "governance": 89,
+        "audit": 100,
+        "bank_run_detected": true,
+        "circuit_breaker_active": true
+      }
+    }
+  }
+]

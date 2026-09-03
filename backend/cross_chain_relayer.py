@@ -7,7 +7,7 @@ via standard bridging protocols (LayerZero v2, CCIP, OP Stack Messenger).
 Architecture:
 - This module handles MESSAGE ENCODING (ABI-encoding, packet structure, routing)
 - Actual cross-chain delivery requires deploying bridge adapters on destination chains
-- For the hackathon demo, packets are encoded and ready for relay
+- For the hackathon testnet, packets are encoded and ready for relay
 - In production, integrate with LayerZero/CCIP endpoint contracts
 
 What this module DOES:

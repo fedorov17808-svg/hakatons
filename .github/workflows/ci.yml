@@ -37,6 +37,8 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: python -m pytest test_e2e_suite.py -q --tb=short
+      - run: python test_storage.py
+      - run: python -m backtesting.run_backtest
 
   contracts:
     name: Smart Contracts (Hardhat)

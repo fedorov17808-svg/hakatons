@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { CreditPulseASC, MockBlockProver } from "../typechain-types";
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 
-describe("CreditPulseASC v7.2.0 Enterprise", function () {
+describe("CreditPulseASC v7.3.0 Enterprise", function () {
   let contract: CreditPulseASC;
   let mockProver: MockBlockProver;
   let owner: SignerWithAddress;
@@ -57,8 +57,8 @@ describe("CreditPulseASC v7.2.0 Enterprise", function () {
       expect(await contract.owner()).to.equal(owner.address);
     });
 
-    it("should have version 7.2.0", async function () {
-      expect(await contract.VERSION()).to.equal("7.2.0");
+    it("should have version 7.3.0", async function () {
+      expect(await contract.VERSION()).to.equal("7.3.0");
     });
 
     it("should start with 0 reports", async function () {

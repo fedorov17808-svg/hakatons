@@ -21,6 +21,12 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'CreditPulse AI',
     url: 'https://frontend-gamma-pink-41.vercel.app',
+    images: [{
+      url: 'https://frontend-gamma-pink-41.vercel.app/favicon.svg',
+      width: 512,
+      height: 512,
+      alt: 'CreditPulse AI Logo',
+    }],
   },
   twitter: {
     card: 'summary_large_image',

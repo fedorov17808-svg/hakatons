@@ -82,6 +82,35 @@ contract CreditPulseLendingPool {
 
     /// @notice Originate an undercollateralized loan with risk-adjusted terms
     function borrow(address _collateralAsset, uint256 _collateralAmount) external payable returns (uint256 loanId) {
+        return _originateLoan(msg.sender, _collateralAsset, _collateralAmount);
+    }
+
+    /// @notice Pull-Oracle Loan Origination: atomically updates CreditPulse oracle score with DON quorum proof and originates loan
+    /// @dev Eliminates reliance on off-chain keeper transaction subsidies; the borrower subsidizes oracle delivery gas in 1 atomic tx
+    function borrowWithOracleProof(
+        address _collateralAsset,
+        uint256 _collateralAmount,
+        uint8[7] calldata _scores,
+        bytes32 _dataHash,
+        bytes32 _aiDigest,
+        address[] calldata _signers,
+        bytes[] calldata _signatures
+    ) external payable returns (uint256 loanId) {
+        // 1. Update oracle state on-demand
+        creditPulseOracle.saveRiskReportMultiSigned(
+            _collateralAsset,
+            _scores,
+            _dataHash,
+            _aiDigest,
+            _signers,
+            _signatures
+        );
+
+        // 2. Execute loan origination for the true borrower
+        return _originateLoan(msg.sender, _collateralAsset, _collateralAmount);
+    }
+
+    function _originateLoan(address _borrower, address _collateralAsset, uint256 _collateralAmount) internal returns (uint256 loanId) {
         if (_collateralAmount == 0) revert InvalidCollateral();
 
         (uint16 ltvBps, uint16 interestRateBps, uint8 score) = calculateLoanTerms(_collateralAsset);
@@ -90,7 +119,7 @@ contract CreditPulseLendingPool {
         
         loanId = ++loanCount;
         loans[loanId] = Loan({
-            borrower: msg.sender,
+            borrower: _borrower,
             collateralAsset: _collateralAsset,
             collateralAmount: _collateralAmount,
             borrowedAmount: maxBorrowable,
@@ -100,11 +129,11 @@ contract CreditPulseLendingPool {
             isRepaid: false
         });
 
-        borrowerLoans[msg.sender].push(loanId);
+        borrowerLoans[_borrower].push(loanId);
 
         emit LoanOriginated(
             loanId, 
-            msg.sender, 
+            _borrower, 
             _collateralAsset, 
             maxBorrowable, 
             score, 

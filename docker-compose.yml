@@ -42,12 +42,15 @@ services:
     command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8011"]
     ports:
       - "8011:8011"
+    env_file:
+      - ./backend/.env.node-alpha
     environment:
       - PORT=8011
       - NODE_ID=node-alpha
       - NODE_NAME=Oracle-Alpha
       - NODE_REGION=us-east-1
-      - PRIVATE_KEY=0x55ac26863a79cdab5304164afb3c5fac6591658514197e4125f4a7c5c064971c
+      - PRIMARY_DATA_SOURCE=defillama
+      - CREDITPULSE_DEMO_KEYS=true
     networks:
       - creditpulse-net
 
@@ -60,12 +63,15 @@ services:
     command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8012"]
     ports:
       - "8012:8012"
+    env_file:
+      - ./backend/.env.node-beta
     environment:
       - PORT=8012
       - NODE_ID=node-beta
       - NODE_NAME=Oracle-Beta
       - NODE_REGION=eu-central-1
-      - PRIVATE_KEY=0xfcad0b19bb29d4674531d6f115237e16afce377c35f3246e5a1723d39e0971b2
+      - PRIMARY_DATA_SOURCE=dexscreener
+      - CREDITPULSE_DEMO_KEYS=true
     networks:
       - creditpulse-net
 
@@ -78,12 +84,15 @@ services:
     command: ["python3", "-m", "uvicorn", "nodes.node_server:app", "--host", "0.0.0.0", "--port", "8013"]
     ports:
       - "8013:8013"
+    env_file:
+      - ./backend/.env.node-gamma
     environment:
       - PORT=8013
       - NODE_ID=node-gamma
       - NODE_NAME=Oracle-Gamma
       - NODE_REGION=ap-southeast-1
-      - PRIVATE_KEY=0xb4b6059dbe03c873eb2d4b971a82ffd04368565a4c4e2a4a7536d7a5b3a6971a
+      - PRIMARY_DATA_SOURCE=rpc
+      - CREDITPULSE_DEMO_KEYS=true
     networks:
       - creditpulse-net
 

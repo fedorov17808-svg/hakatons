@@ -27,7 +27,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("status", data)
-        print("✅ GET /health — 200 OK")
 
     def test_methodology(self):
         """GET /api/methodology — should return scoring methodology."""
@@ -36,7 +35,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         data = r.json()
         self.assertIn("version", data)
         self.assertIn("dimensions", data)
-        print("✅ GET /api/methodology — methodology returned")
 
     def test_api_stats(self):
         """GET /api/stats — should return global statistics."""
@@ -44,7 +42,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("version", data)
-        print(f"✅ GET /api/stats — version: {data.get('version')}")
 
     def test_attestcoin_status(self):
         """GET /api/attestcoin/status — should return module info."""
@@ -52,7 +49,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertIn("precompile", data)
-        print("✅ GET /api/attestcoin/status — operational")
 
     # ─── DON Cluster (internal, no external deps) ──────────────
 
@@ -63,7 +59,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         data = r.json()
         self.assertIn("nodes", data)
         self.assertIsInstance(data["nodes"], list)
-        print(f"✅ GET /api/don/nodes — {len(data['nodes'])} nodes")
 
     def test_don_p2p_telemetry(self):
         """GET /api/don/p2p-telemetry — should return mesh topology."""
@@ -72,7 +67,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         data = r.json()
         self.assertIn("mesh_clusters", data)
         self.assertIn("total_configured_peers", data)
-        print(f"✅ GET /api/don/p2p-telemetry — {data['total_configured_peers']} peers")
 
     # ─── Cross-Chain Relay (internal ABI encoding) ─────────────
 
@@ -93,7 +87,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertTrue(data["packet_id"].startswith("0x"))
         self.assertIsNotNone(data.get("abi_encoded_calldata"))
         self.assertEqual(data["destination_chain"], "Ethereum Mainnet")
-        print("✅ POST /api/cross-chain/relay — ENCODED_READY_FOR_BRIDGE")
 
     def test_cross_chain_arbitrum(self):
         """POST /api/cross-chain/relay — Arbitrum destination."""
@@ -109,7 +102,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         data = r.json()
         self.assertEqual(data["destination_chain"], "Arbitrum One")
-        print("✅ POST /api/cross-chain/relay (Arbitrum) — correct routing")
 
     # ─── Autonomous Keeper ─────────────────────────────────────
 
@@ -120,7 +112,6 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         data = r.json()
         self.assertIn("status", data)
         self.assertIn("scheduler", data)
-        print(f"✅ GET /api/autonomous/status — scheduler: {data.get('scheduler')}")
 
     # ─── OpenAPI Docs ──────────────────────────────────────────
 
@@ -132,14 +123,12 @@ class TestCreditPulseHTTPEndpoints(unittest.TestCase):
         self.assertIn("openapi", data)
         path_count = len(data["paths"])
         self.assertGreaterEqual(path_count, 10)
-        print(f"✅ GET /openapi.json — {path_count} API paths documented")
 
     def test_docs_available(self):
         """GET /docs — Swagger UI should be served."""
         r = self.client.get("/docs")
         self.assertEqual(r.status_code, 200)
         self.assertIn("swagger", r.text.lower())
-        print("✅ GET /docs — Swagger UI available")
 
 
 class TestEdgeCasesAndNegativePaths(unittest.TestCase):
@@ -155,13 +144,11 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         """GET /api/nonexistent — should return 404."""
         r = self.client.get("/api/nonexistent")
         self.assertEqual(r.status_code, 404)
-        print("✅ GET /api/nonexistent — 404 Not Found")
 
     def test_wrong_method_returns_405(self):
         """DELETE /health — wrong HTTP method should return 405."""
         r = self.client.delete("/health")
         self.assertEqual(r.status_code, 405)
-        print("✅ DELETE /health — 405 Method Not Allowed")
 
     # ─── Malformed Payloads ────────────────────────────────────
 
@@ -169,7 +156,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         """POST /api/quant/monte-carlo with empty body — 422."""
         r = self.client.post("/api/quant/monte-carlo", json={})
         self.assertEqual(r.status_code, 422)
-        print("✅ POST /api/quant/monte-carlo (empty) — 422 Validation Error")
 
     def test_stress_test_invalid_scenario(self):
         """POST /api/quant/stress-test with invalid scenario — should still work (fallback)."""
@@ -180,7 +166,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         })
         # Should either 200 with fallback or 400 — both acceptable
         self.assertIn(r.status_code, [200, 400])
-        print(f"✅ POST /api/quant/stress-test (invalid scenario) — {r.status_code}")
 
     def test_cross_chain_relay_invalid_chain_id(self):
         """POST /api/cross-chain/relay with chain_id=0 — should succeed (encoding only)."""
@@ -197,7 +182,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         data = r.json()
         # Response should contain encoded payload data
         self.assertTrue(len(data) > 0)
-        print("✅ POST /api/cross-chain/relay (zero chain) — 200 OK")
 
     # ─── Boundary Values ───────────────────────────────────────
 
@@ -214,7 +198,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         self.assertIn("metrics", data)
         metrics = data["metrics"]
         self.assertIn("var_95_pct", metrics)
-        print("✅ POST /api/quant/monte-carlo (extreme values) — computed successfully")
 
     # ─── Response Structure Validation ─────────────────────────
 
@@ -225,7 +208,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         self.assertIn("status", data)
         self.assertIn("version", data)
         self.assertIn(data["status"], ["healthy", "operational"])
-        print("✅ GET /health — response schema validated")
 
     def test_methodology_response_completeness(self):
         """GET /api/methodology — should have all scoring dimensions."""
@@ -234,7 +216,6 @@ class TestEdgeCasesAndNegativePaths(unittest.TestCase):
         self.assertIn("dimensions", data)
         dims = data["dimensions"]
         self.assertGreaterEqual(len(dims), 4, "Should have at least 4 scoring dimensions")
-        print(f"✅ GET /api/methodology — {len(dims)} scoring dimensions documented")
 
 
 if __name__ == "__main__":

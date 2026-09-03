@@ -137,11 +137,27 @@ def api_verify(req: VerifyRequest):
     }
 
 
+@router.get("/api/rwa/chainlink-por/{address}")
+def api_chainlink_por(address: str):
+    """
+    Fetch verified on-chain custodian reserve backing from official Chainlink Proof-of-Reserve feeds.
+    Provides independent 3rd-party verification of off-chain bank balances for tokenized RWAs (Ondo, Aave, Maker, BitGo).
+    """
+    from services.chainlink_por import ChainlinkPoRClient
+    por_data = ChainlinkPoRClient.get_por_telemetry(address)
+    if not por_data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No Chainlink Proof-of-Reserve feed registered for asset {address}."
+        )
+    return por_data
+
+
 @router.get("/api/methodology")
 def api_methodology():
     """Retrieve full formal specification of the 7-dimensional institutional scoring methodology."""
     return {
-        "version": "7.2.0",
+        "version": "8.0.0",
         "network": "Creditcoin Testnet (CC3)",
         "smart_contract": CONTRACT_ADDRESS,
         "architecture": "Federated Multi-Node DON Cluster + Cryptographic Proof-of-Reserve Commitments + Optimistic Dispute Window",

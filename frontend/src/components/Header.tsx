@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 
 interface HeaderProps {
   backendStatus: 'checking' | 'online' | 'offline';
@@ -28,6 +29,12 @@ export const Header: React.FC<HeaderProps> = ({
             CreditPulse AI
           </h1>
         </div>
+        <nav className="hidden md:flex items-center gap-4 ml-6 pl-6 border-l border-slate-800">
+          <Link href="/dashboard" className="text-xs font-medium text-slate-400 hover:text-cyan-400 transition">Dashboard</Link>
+          <Link href="/explorer" className="text-xs font-medium text-slate-400 hover:text-cyan-400 transition">Explorer</Link>
+          <Link href="/docs" className="text-xs font-medium text-slate-400 hover:text-cyan-400 transition">Docs</Link>
+          <Link href="/waitlist" className="text-xs font-semibold px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-lg hover:bg-cyan-500/20 transition">Early Access</Link>
+        </nav>
       </div>
       <div className="flex flex-wrap justify-center items-center gap-3">
         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 rounded-xl border border-slate-800 backdrop-blur-sm shadow-inner text-xs font-mono font-medium hidden sm:flex">

@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.2.0 Enterprise Grade
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
+/// @title CreditPulse AI — Attestcoin Smart Contract (ASC) v7.3.0 Enterprise Grade
 /// @author CreditPulse AI Team
 /// @notice Decentralized credit scoring, Federated Multi-Oracle DON Quorum, Optimistic Dispute Window, Staking/Slashing, and zkTLS Proof-of-Reserve (PoR)
 /// @dev Integrates with Creditcoin Native Query Verifier Precompile (0x0FD2) for trustless cross-chain proof verification
+/// @dev Security: OpenZeppelin ReentrancyGuard + Pausable for defense-in-depth
 
 struct MerkleSibling {
     bytes32 hash;
@@ -31,8 +35,8 @@ interface IBlockProver {
     ) external returns (bytes32);
 }
 
-contract CreditPulseASC {
-    string public constant VERSION = "7.2.0";
+contract CreditPulseASC is ReentrancyGuard, Pausable {
+    string public constant VERSION = "7.3.0";
     bytes32 public constant EIP712_DOMAIN_TYPEHASH = keccak256(
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
     );
@@ -68,6 +72,16 @@ contract CreditPulseASC {
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
+    }
+
+    /// @notice Emergency pause for all write operations
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /// @notice Unpause contract
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     /// @dev Restricts access to authorized oracle nodes, contract owner, or designated oracleSigner
@@ -268,7 +282,7 @@ contract CreditPulseASC {
     // 2. Economic Staking & Slashing
     // ==========================================
 
-    function stakeOracle() external payable {
+    function stakeOracle() external payable whenNotPaused {
         require(msg.value > 0, "Stake must be greater than 0");
         require(isAuthorizedOracle[msg.sender] || msg.sender == owner, "Must be authorized oracle");
         
@@ -278,7 +292,7 @@ contract CreditPulseASC {
         emit OracleStaked(msg.sender, msg.value, oracleStake[msg.sender]);
     }
 
-    function unstakeOracle(uint256 _amount) external {
+    function unstakeOracle(uint256 _amount) external nonReentrant {
         require(_amount > 0, "Amount must be greater than 0");
         require(oracleStake[msg.sender] >= _amount, "Insufficient stake");
         
@@ -300,7 +314,7 @@ contract CreditPulseASC {
         emit OracleUnstaked(msg.sender, _amount, remainingStake);
     }
 
-    function slashOracle(address _maliciousOracle, address _recipient, uint256 _amount, string calldata _reason) external onlyOwner {
+    function slashOracle(address _maliciousOracle, address _recipient, uint256 _amount, string calldata _reason) external onlyOwner nonReentrant {
         require(_maliciousOracle != address(0), "Invalid oracle");
         require(_recipient != address(0), "Invalid recipient");
         require(_amount > 0, "Slash amount must be > 0");
@@ -323,7 +337,7 @@ contract CreditPulseASC {
         address _assetAddress,
         uint256 _reportIndex,
         string calldata _evidenceUrl
-    ) external payable {
+    ) external payable whenNotPaused {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_reportIndex < assetReportHistory[_assetAddress].length, "Report index out of bounds");
         require(msg.value >= challengerBond, "Insufficient challenger bond");
@@ -350,7 +364,7 @@ contract CreditPulseASC {
         uint256 _reportIndex,
         bool _upholdChallenge,
         address _maliciousOracle
-    ) external onlyOwner {
+    ) external onlyOwner nonReentrant {
         require(reportDisputes[_assetAddress][_reportIndex].active, "No active dispute");
         require(!reportDisputes[_assetAddress][_reportIndex].resolved, "Dispute already resolved");
 
@@ -398,7 +412,7 @@ contract CreditPulseASC {
         bytes32 _aiDigest,
         address[] calldata _signers,
         bytes[] calldata _signatures
-    ) external {
+    ) external whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_scores[0] <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");
@@ -476,7 +490,7 @@ contract CreditPulseASC {
         bytes32 _zkTlsProofHash,
         bytes32 _custodianKeyHash,
         bytes32 _sessionCommitment
-    ) external {
+    ) external whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_score <= 100, "Score exceeds maximum");
         require(_reserveRatioBps > 0, "Reserve ratio must be > 0");
@@ -523,7 +537,7 @@ contract CreditPulseASC {
         uint16 _reserveRatioBps,
         bytes32 _porHash,
         bytes32 _legalEntityDigest
-    ) external {
+    ) external whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_score <= 100, "Score exceeds maximum");
         require(_reserveRatioBps > 0, "Reserve ratio must be > 0");
@@ -572,7 +586,7 @@ contract CreditPulseASC {
         uint8 _governance,
         bytes32 _dataHash,
         bytes calldata _signature
-    ) external {
+    ) external whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");
@@ -685,7 +699,7 @@ contract CreditPulseASC {
         uint8 _governance,
         bytes32 _dataHash,
         bytes32 _aiDigest
-    ) external onlyAuthorizedOracle {
+    ) external onlyAuthorizedOracle whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");
@@ -720,7 +734,7 @@ contract CreditPulseASC {
         uint8 _volatility,
         uint8 _governance,
         bytes32 _dataHash
-    ) external onlyAuthorizedOracle {
+    ) external onlyAuthorizedOracle whenNotPaused nonReentrant {
         require(_assetAddress != address(0), "Invalid asset address");
         require(_overallScore <= 100, "Score exceeds maximum");
         require(_dataHash != bytes32(0), "dataHash required");

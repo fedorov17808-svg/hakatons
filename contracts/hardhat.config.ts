@@ -10,11 +10,16 @@ const privateKey = process.env.PRIVATE_KEY && process.env.PRIVATE_KEY.length >= 
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.20",
-    settings: {
-      viaIR: true,
-      optimizer: { enabled: true, runs: 200 }
-    }
+    compilers: [
+      {
+        version: "0.8.20",
+        settings: { viaIR: true, optimizer: { enabled: true, runs: 200 } }
+      },
+      {
+        version: "0.8.24",
+        settings: { viaIR: true, optimizer: { enabled: true, runs: 200 } }
+      }
+    ]
   },
   networks: {
     creditcoin_testnet: {

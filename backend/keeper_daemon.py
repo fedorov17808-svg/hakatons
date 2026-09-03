@@ -319,4 +319,3 @@ if __name__ == "__main__":
         daemon.start_loop()
     else:
         res = daemon.run_single_cycle(force_broadcast=args.force)
-        print(json.dumps(res, indent=2))

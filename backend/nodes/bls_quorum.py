@@ -1,5 +1,5 @@
 """
-CreditPulse AI — BLS12-381 Aggregated Quorum & P2P Topology Module v7.2.0
+CreditPulse AI — BLS12-381 Aggregated Quorum & P2P Topology Module v7.3.0
 
 Uses the py_ecc library (real BLS12-381 elliptic curve operations) for:
 - Hash-to-curve mapping (message → G1 point)
@@ -9,6 +9,12 @@ Uses the py_ecc library (real BLS12-381 elliptic curve operations) for:
 
 This is NOT a simulation — it performs real elliptic curve arithmetic
 on the BLS12-381 curve (the same curve used by Ethereum 2.0 consensus).
+
+Key Management (v7.3.0):
+- Production: Keys loaded from ~/.creditpulse/keys/<node-id>.key.json
+  Generated via `python keygen.py --node-id <id>` using os.urandom(32)
+- Testnet: Deterministic keys from public seeds (flagged in all outputs)
+  Activated only via CREDITPULSE_TESTNET_KEYS=true environment variable
 """
 
 import os
@@ -33,6 +39,23 @@ from web3 import Web3
 
 logger = logging.getLogger("BLSQuorum")
 
+# Lazy import to avoid circular dependency at module level
+_key_manager = None
+
+
+def _get_key_manager():
+    """Lazy-load NodeKeyManager to avoid import-time side effects."""
+    global _key_manager
+    if _key_manager is None:
+        from nodes.keygen import NodeKeyManager
+        _key_manager = NodeKeyManager()
+    return _key_manager
+
+
+def _is_testnet_mode() -> bool:
+    """Check if testnet keys are explicitly enabled via environment."""
+    return os.getenv("CREDITPULSE_TESTNET_KEYS", "").lower() in ("true", "1", "yes")
+
 
 class BLSQuorumEngine:
     """
@@ -45,22 +68,73 @@ class BLSQuorumEngine:
     - Aggregation: N individual G1 signatures → 1 aggregated G1 signature (48 bytes)
     - Verification: Single pairing check regardless of signer count
     - Gas savings: ~113,000 gas (EIP-2537 precompile) vs N × 3,000 (ecrecover)
+
+    Key management (v7.3.0):
+    - Production: Unique keys per node from os.urandom(32), stored in keyfiles
+    - Testnet: Deterministic keys only when CREDITPULSE_TESTNET_KEYS=true
     """
 
-    # Pre-generated BLS private keys for the 3 demo validator nodes
-    # In production, each node holds its own key in a secure enclave / HSM
     @classmethod
-    def _make_demo_key(cls, seed_bytes: bytes) -> int:
-        """Derive a valid BLS private key from seed (1 <= sk < curve_order)."""
-        raw = int.from_bytes(hashlib.sha256(seed_bytes).digest(), "big")
-        return (raw % (curve_order - 1)) + 1  # Ensures 1 <= result < curve_order
+    def _load_node_key(cls, node_id: str) -> int:
+        """
+        Load a node's BLS private key from secure keyfile storage.
+
+        Priority:
+        1. Keyfile at ~/.creditpulse/keys/<node-id>.key.json (production)
+        2. Demo keys if CREDITPULSE_TESTNET_KEYS=true (development only)
+        3. Auto-generate new key from os.urandom(32) and save to keyfile
+
+        In production, keys should be pre-generated via:
+            python keygen.py --node-id <node-id>
+        """
+        # Try loading from keyfile first (production path)
+        try:
+            manager = _get_key_manager()
+            result = manager.load_key(node_id)
+            if result is not None:
+                sk, _pk = result
+                logger.info(f"Loaded production key for {node_id} from keyfile")
+                return sk
+        except Exception as e:
+            logger.warning(f"Failed to load keyfile for {node_id}: {e}")
+
+        # Fall back to testnet keys ONLY if explicitly enabled
+        if _is_testnet_mode():
+            logger.warning(
+                f"⚠️  TESTNET MODE: Using deterministic key for {node_id}. "
+                f"NOT suitable for production. Set CREDITPULSE_TESTNET_KEYS=false "
+                f"and generate real keys with: python keygen.py --node-id {node_id}"
+            )
+            return cls._make_testnet_key(f"creditpulse-{node_id}-v7.2".encode())
+
+        # Auto-generate and persist a new secure key
+        logger.info(f"Auto-generating new BLS key for {node_id} from os.urandom(32)")
+        try:
+            manager = _get_key_manager()
+            sk, _pk = manager.load_or_generate(node_id)
+            return sk
+        except Exception as e:
+            logger.error(f"Key generation failed for {node_id}: {e}. Falling back to testnet key.")
+            return cls._make_testnet_key(f"creditpulse-{node_id}-v7.2".encode())
 
     @classmethod
-    def _get_demo_keys(cls) -> Dict[str, int]:
+    def _make_testnet_key(cls, seed_bytes: bytes) -> int:
+        """
+        Derive a Testnet BLS private key from seed (1 <= sk < curve_order).
+
+        WARNING: Demo keys are derived from PUBLIC strings and provide
+        NO cryptographic security. They exist solely for local testing.
+        """
+        raw = int.from_bytes(hashlib.sha256(seed_bytes).digest(), "big")
+        return (raw % (curve_order - 1)) + 1
+
+    @classmethod
+    def _get_testnet_keys(cls) -> Dict[str, int]:
+        """Legacy accessor — returns testnet keys. Prefer _load_node_key() instead."""
         return {
-            "node-alpha": cls._make_demo_key(b"creditpulse-node-alpha-v7.2"),
-            "node-beta":  cls._make_demo_key(b"creditpulse-node-beta-v7.2"),
-            "node-gamma": cls._make_demo_key(b"creditpulse-node-gamma-v7.2"),
+            "node-alpha": cls._make_testnet_key(b"creditpulse-node-alpha-v7.2"),
+            "node-beta":  cls._make_testnet_key(b"creditpulse-node-beta-v7.2"),
+            "node-gamma": cls._make_testnet_key(b"creditpulse-node-gamma-v7.2"),
         }
 
     @classmethod
@@ -99,6 +173,7 @@ class BLSQuorumEngine:
         message_bytes = bytes.fromhex(clean_hash[2:]) if clean_hash.startswith("0x") else clean_hash.encode()
 
         start_time = time.monotonic()
+        testnet_mode = _is_testnet_mode()
 
         # Step 1: Each node signs with its BLS private key
         individual_sigs: List[bytes] = []
@@ -109,11 +184,8 @@ class BLSQuorumEngine:
             node_id = node_entry.get("node_id", "node-alpha")
             signer_address = node_entry.get("signer_address", "0x0")
 
-            # Get the node's BLS private key (in production: loaded from HSM/enclave)
-            sk = cls._get_demo_keys().get(node_id)
-            if sk is None:
-                # Derive a deterministic key from the signer address
-                sk = cls._make_demo_key(f"bls-key-{signer_address}".encode())
+            # Load key from secure keyfile (production) or testnet keys
+            sk = cls._load_node_key(node_id)
 
             # Real BLS sign: H(msg) → G1, then sk × H(msg) → G1 signature
             sig = cls._sign_message(sk, message_bytes)
@@ -129,6 +201,7 @@ class BLSQuorumEngine:
                 "signer_address": signer_address,
                 "pubkey_hex": "0x" + pk.hex()[:32] + "...",
                 "signature_valid": is_valid,
+                "key_source": "TESTNET_DETERMINISTIC" if testnet_mode else "KEYFILE_CSPRNG",
             })
 
         # Step 2: Aggregate signatures (point addition on G1)

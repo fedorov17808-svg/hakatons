@@ -35,6 +35,8 @@ export interface RiskResult {
   data_hash?: string;
   ai_narrative?: string;
   ai_risks?: string[];
+  ai_recommendations?: string[];
+  ai_model?: string;
   ai_powered?: boolean;
   ai_digest?: string;
   provenance?: {
@@ -43,13 +45,46 @@ export interface RiskResult {
     hash_algorithm?: string;
     verification?: string;
   };
-  // v7.2.0 — Scoring Transparency fields
+  eip712_attestation?: {
+    signer: string;
+    signature: string;
+    r: string;
+    s: string;
+    v: number;
+    domain: Record<string, string | number>;
+    message: Record<string, string | number>;
+  };
+  raw_weighted_score?: number;
   scoring_engine?: string;
   ai_role?: string;
   ai_note?: string;
   seasoning_score?: number;
   weight_profile?: Record<string, number | string>;
-  scoring_breakdown?: Record<string, string>;
+  scoring_breakdown?: Record<string, unknown>;
+  onchain_telemetry?: {
+    is_contract?: boolean;
+    bytecode_size?: number;
+    transaction_count?: number;
+    native_balance_eth?: number;
+    native_balance_usd?: number;
+    token_balances?: Array<{ symbol: string; balance: number; usd_value: number }>;
+    total_portfolio_usd?: number;
+    admin_type?: string;
+    rpc_used?: string;
+    live_eth_price_usd?: number;
+    price_source?: string;
+  };
+  sources_used?: string[];
+  quantitative_model?: {
+    merton_default_prob?: number;
+    distance_to_default_sigma?: number;
+    var_99_10d_pct?: number;
+    cvar_99_10d_pct?: number;
+    lindy_seasoning_multiplier?: number;
+    simulated_monte_carlo_paths?: number;
+    risk_free_rate_pct?: number;
+    rating_impact_points?: number;
+  };
 }
 
 export const getScoreColor = (score: number) => {
@@ -69,8 +104,8 @@ export const getScoreText = (score: number) => {
 
 export const getVerdictStyle = (verdict?: string) => {
   const v = verdict || '';
-  if (v.includes('LOW RISK')) return { box: 'bg-emerald-950/30 border-emerald-500', text: 'text-emerald-400' };
-  if (v.includes('MODERATE')) return { box: 'bg-cyan-950/30 border-cyan-500', text: 'text-cyan-400' };
+  if (v.includes('LOW RISK') || v.includes('INSTITUTIONAL AAA')) return { box: 'bg-emerald-950/30 border-emerald-500', text: 'text-emerald-400' };
+  if (v.includes('MODERATE') || v.includes('INVESTMENT GRADE')) return { box: 'bg-cyan-950/30 border-cyan-500', text: 'text-cyan-400' };
   if (v.includes('HIGH') || v.includes('CRITICAL')) return { box: 'bg-rose-950/30 border-rose-500', text: 'text-rose-400' };
   return { box: 'bg-blue-950/30 border-blue-800/30', text: 'text-blue-400' };
 };
@@ -80,6 +115,8 @@ interface RiskMetricsProps {
 }
 
 export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
+  const telem = result.onchain_telemetry;
+
   return (
     <div id="section-breakdown" className="space-y-5">
       <div className="flex items-center justify-between">
@@ -88,7 +125,7 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
         </h3>
         {result.circuit_breaker_active && (
           <span className="text-[10px] font-mono bg-rose-950/70 border border-rose-500/50 text-rose-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <span>⚠️</span> Circuit Breaker Clamped
+            <span>⚠️</span> Hard Cap Active
           </span>
         )}
       </div>
@@ -96,11 +133,53 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
       {result.circuit_breaker_active && result.circuit_breaker_reason && (
         <div className="bg-rose-950/40 border border-rose-500/40 rounded-xl p-3 text-xs text-rose-200 space-y-1">
           <div className="font-bold flex items-center gap-1.5">
-            <span>🛡️</span> Non-Linear Catastrophic Hard Cap Activated
+            <span>🛡️</span> Anti-Manipulation Circuit Breaker
           </div>
           <p className="text-[11px] text-rose-300/80 leading-relaxed font-mono">
             {result.circuit_breaker_reason}
           </p>
+        </div>
+      )}
+
+      {/* On-Chain Verifiable Solvency Summary */}
+      {telem && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-slate-400 font-mono flex items-center gap-1.5">
+              <span>⚡</span> Verifiable On-Chain Balance:
+            </span>
+            <span className="font-mono font-bold text-emerald-400 text-sm">
+              ${(telem.total_portfolio_usd || 0).toLocaleString()}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-[11px] font-mono">
+            <div className="bg-slate-950/60 border border-slate-800/80 rounded px-2 py-1">
+              <span className="text-slate-500 block text-[9px]">ETH Balance</span>
+              <span className="text-slate-200 font-bold">{telem.native_balance_eth ?? 0} ETH</span>
+            </div>
+            <div className="bg-slate-950/60 border border-slate-800/80 rounded px-2 py-1">
+              <span className="text-slate-500 block text-[9px]">Transaction Nonce</span>
+              <span className="text-slate-200 font-bold">{telem.transaction_count ?? 0} txs</span>
+            </div>
+            <div className="bg-slate-950/60 border border-slate-800/80 rounded px-2 py-1 col-span-2 sm:col-span-1">
+              <span className="text-slate-500 block text-[9px]">Live Oracle Price</span>
+              <span className="text-cyan-300 font-bold">${telem.live_eth_price_usd?.toLocaleString() || "2,505"}</span>
+            </div>
+          </div>
+
+          {telem.token_balances && telem.token_balances.length > 0 && (
+            <div className="pt-1 border-t border-slate-800/60">
+              <span className="text-[10px] text-slate-500 font-mono block mb-1">Detected ERC-20 Tokens:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {telem.token_balances.map((t) => (
+                  <span key={t.symbol} className="text-[10px] font-mono bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 px-2 py-0.5 rounded">
+                    {t.symbol}: {t.balance.toLocaleString()} (${t.usd_value.toLocaleString()})
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -127,6 +206,45 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
           </div>
         </div>
       ))}
+
+      {result.quantitative_model && (
+        <div className="mt-4 pt-4 border-t border-slate-800/80">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-mono font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span>📐</span> Merton (1974) & Monte Carlo Engine
+            </span>
+            <span className="text-[10px] font-mono text-slate-500">
+              1,000 paths • 99% CI
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-slate-400 font-mono mb-1">Merton Default P(D)</div>
+              <div className={`text-xs font-mono font-bold ${(result.quantitative_model.merton_default_prob || 0) < 0.05 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {((result.quantitative_model.merton_default_prob || 0) * 100).toFixed(2)}%
+              </div>
+            </div>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-slate-400 font-mono mb-1">Distance to Default</div>
+              <div className="text-xs font-mono font-bold text-cyan-300">
+                {result.quantitative_model.distance_to_default_sigma} σ
+              </div>
+            </div>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-slate-400 font-mono mb-1">10-day VaR (99%)</div>
+              <div className="text-xs font-mono font-bold text-amber-400">
+                -{result.quantitative_model.var_99_10d_pct}%
+              </div>
+            </div>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-slate-400 font-mono mb-1">Lindy Multiplier</div>
+              <div className="text-xs font-mono font-bold text-indigo-300">
+                {result.quantitative_model.lindy_seasoning_multiplier}x
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

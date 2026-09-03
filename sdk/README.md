@@ -1,54 +1,107 @@
 # @creditpulse/sdk
 
-Official Developer SDK for integrating **CreditPulse AI** real-time institutional credit ratings and dynamic risk-adjusted LTV into your DeFi and RWA protocols on **Creditcoin (CC3)**.
+> Official TypeScript SDK for CreditPulse AI — Institutional-Grade Credit Risk Scoring on Creditcoin CC3
 
----
+[![npm version](https://img.shields.io/npm/v/@creditpulse/sdk.svg)](https://www.npmjs.com/package/@creditpulse/sdk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-## 📦 Installation
+## Overview
+
+CreditPulse SDK enables DeFi protocols, lending platforms, and fintech applications to integrate institutional-grade credit risk scoring powered by:
+
+- **Merton (1974) Structural Default Model** — Probability of default calculation
+- **Kou Jump-Diffusion Monte Carlo** — 1,000-path tail risk simulation
+- **Decentralized Oracle Network (DON)** — Multi-oracle consensus with BLS signatures
+- **On-chain Attestation** — Verifiable, tamper-proof risk reports on Creditcoin CC3
+
+## Installation
 
 ```bash
-npm install @creditpulse/sdk ethers
+npm install @creditpulse/sdk
+# or
+yarn add @creditpulse/sdk
 ```
 
----
-
-## ⚡ Quickstart (TypeScript / JavaScript)
+## Quick Start
 
 ```typescript
-import { CreditPulseSDK } from "@creditpulse/sdk";
+import { CreditPulseSDK } from '@creditpulse/sdk';
 
-const sdk = new CreditPulseSDK();
+// Initialize with Creditcoin CC3 Testnet
+const sdk = new CreditPulseSDK({
+  rpcUrl: 'https://rpc.cc3-testnet.creditcoin.network',
+  contractAddress: '0x358925c5839a36bB2181786B8763Da0653B0f438',
+});
 
-async function checkBorrower() {
-  const assetAddress = "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2"; // Aave V3
-  
-  // 1. Fetch live on-chain credit report
-  const report = await sdk.getRiskReport(assetAddress);
-  console.log(`Credit Rating: ${report.overall}/100`);
-  console.log(`Liquidity Depth: ${report.liquidity}/100 | Security: ${report.security}/100`);
+// Analyze credit risk for any EVM address
+const report = await sdk.analyzeRisk('0xdAC17F958D2ee523a2206206994597C13D831ec7');
 
-  // 2. Compute dynamic loan terms
-  const terms = sdk.calculateLoanTerms(report.overall);
-  console.log(`Tier: ${terms.tier} | Max LTV: ${terms.ltvPercent}% | APR: ${terms.aprPercent}%`);
-}
-
-checkBorrower();
+console.log(`Overall Score: ${report.overallScore}/100`);
+console.log(`Default Probability: ${report.mertonPD}%`);
+console.log(`VaR (99%): $${report.var99.toLocaleString()}`);
 ```
 
----
+## Features
 
-## 📜 Solidity Integration (1-Line Protocol Integration)
-
-```solidity
-import "@creditpulse/contracts/interfaces/ICreditPulse.sol";
-
-contract MyLendingPool {
-    ICreditPulse public immutable creditPulse = ICreditPulse(0x358925c5839a36bB2181786B8763Da0653B0f438);
-
-    function borrow(address collateralAsset, uint256 amount) external {
-        ICreditPulse.RiskReport memory report = creditPulse.getRiskReport(collateralAsset);
-        require(report.overallScore >= 75, "Collateral asset credit rating below institutional threshold");
-        // Proceed with dynamic loan origination
-    }
-}
+### Risk Analysis
+```typescript
+// Full 7-dimensional risk assessment
+const report = await sdk.analyzeRisk(address);
+// Returns: overallScore, collateral, liquidity, audit, security, volatility, governance
 ```
+
+### On-Chain Recording
+```typescript
+// Record risk report on-chain with oracle signature
+const tx = await sdk.recordOnChain(address, report, privateKey);
+console.log(`TX Hash: ${tx.hash}`);
+```
+
+### Dynamic Loan Terms
+```typescript
+// Get risk-adjusted lending parameters
+const terms = await sdk.getDynamicLoanTerms(report);
+// Returns: maxLTV, interestRate, liquidationThreshold, collateralFactor
+```
+
+### Insurance Pool
+```typescript
+// Query insurance pool status
+const pool = await sdk.getInsurancePoolStatus();
+console.log(`Junior Tranche TVL: ${pool.juniorTVL}`);
+console.log(`Senior Tranche TVL: ${pool.seniorTVL}`);
+```
+
+## API Reference
+
+### `CreditPulseSDK`
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `analyzeRisk(address)` | Full credit risk analysis | `RiskScores` |
+| `recordOnChain(address, scores, key)` | Record report on-chain | `TransactionReceipt` |
+| `getDynamicLoanTerms(scores)` | Risk-adjusted loan parameters | `DynamicLoanTerms` |
+| `getContractStats()` | Protocol statistics | `ContractStats` |
+
+### `RiskScores`
+
+| Field | Type | Range | Description |
+|-------|------|-------|-------------|
+| `overallScore` | `number` | 0-100 | Composite credit score |
+| `collateral` | `number` | 0-100 | Collateral health |
+| `liquidity` | `number` | 0-100 | Liquidity depth |
+| `audit` | `number` | 0-100 | Smart contract audit status |
+| `security` | `number` | 0-100 | Security posture |
+| `volatility` | `number` | 0-100 | Market volatility exposure |
+| `governance` | `number` | 0-100 | Governance risk |
+| `mertonPD` | `number` | 0-100% | Merton probability of default |
+| `var99` | `number` | USD | Value-at-Risk (99th percentile) |
+
+## Requirements
+
+- Node.js >= 18.0.0
+- ethers.js v6
+
+## License
+
+MIT © CreditPulse AI Team
