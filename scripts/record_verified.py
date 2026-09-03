@@ -22,7 +22,7 @@ if not PK:
 account = w3.eth.account.from_key(PK)
 print(f"Account: {account.address}, Balance: {w3.eth.get_balance(account.address) / 1e18:.4f} CTC")
 
-CONTRACT = os.getenv("CONTRACT_ADDRESS", "0x358925c5839a36bB2181786B8763Da0653B0f438")
+CONTRACT = os.getenv("CONTRACT_ADDRESS", "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5")
 ABI = json.loads('[{"inputs":[{"internalType":"uint32","name":"_sourceChainId","type":"uint32"},{"internalType":"bytes","name":"_proof","type":"bytes"},{"internalType":"bytes","name":"_txData","type":"bytes"},{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"}],"name":"saveVerifiedRiskReport","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"reportCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"verifiedProofCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]')
 
 contract = w3.eth.contract(address=CONTRACT, abi=ABI)

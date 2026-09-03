@@ -175,7 +175,7 @@ Modeled after institutional reinsurance structures (Morpho/Euler risk curation):
 
 | Network | Address | Status |
 |---------|---------|--------|
-| CC3 Testnet | `0x358925c5839a36bB2181786B8763Da0653B0f438` | ✅ Active |
+| CC3 Testnet | `0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5` | ✅ Active |
 
 ---
 

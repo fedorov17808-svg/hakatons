@@ -8,7 +8,7 @@ export const EXPLORER_URL = "https://creditcoin-testnet.blockscout.com/tx/";
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 export const CC3_RPC = "https://rpc.cc3-testnet.creditcoin.network";
 export const CC3_CHAIN_ID = 102031;
-export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x358925c5839a36bB2181786B8763Da0653B0f438";
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5";
 export const PRECOMPILE_ADDRESS = "0x0000000000000000000000000000000000000FD2";
 export const PROTOCOL_VERSION = "8.5.0";
 

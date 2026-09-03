@@ -17,7 +17,7 @@ export default function DocsPage() {
 // Initialize client connected to Creditcoin CC3
 const client = new CreditPulseClient({
   network: "cc3-testnet",
-  contractAddress: "0x358925c5839a36bB2181786B8763Da0653B0f438"
+  contractAddress: "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
 });
 
 // Analyze counterparty credit risk
@@ -197,7 +197,7 @@ curl -X POST https://api.creditpulse.ai/api/analyze \\
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
             <div className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-xl">
               <div className="text-slate-500 mb-1">Contract Address (UUPS Proxy)</div>
-              <div className="text-cyan-400 break-all font-bold">0x358925c5839a36bB2181786B8763Da0653B0f438</div>
+              <div className="text-cyan-400 break-all font-bold">0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5</div>
             </div>
             <div className="p-3.5 bg-slate-950/70 border border-slate-800/80 rounded-xl">
               <div className="text-slate-500 mb-1">Native Precompile Address</div>

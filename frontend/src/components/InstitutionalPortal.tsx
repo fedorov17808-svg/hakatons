@@ -21,7 +21,7 @@ pragma solidity 0.8.20;
 import "@creditpulse/contracts/interfaces/ICreditPulse.sol";
 
 contract InstitutionalLending {
-    ICreditPulse public immutable oracle = ICreditPulse(0x358925c5839a36bB2181786B8763Da0653B0f438);
+    ICreditPulse public immutable oracle = ICreditPulse(0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5);
 
     function originateLoan(address collateralAsset, uint256 amount) external {
         // 1-Line Credit Risk Gate
@@ -46,7 +46,7 @@ async function checkAsset(assetAddress: string) {
     python: `from web3 import Web3
 
 w3 = Web3(Web3.HTTPProvider("https://rpc.cc3-testnet.creditcoin.network"))
-CONTRACT_ADDRESS = "0x358925c5839a36bB2181786B8763Da0653B0f438"
+CONTRACT_ADDRESS = "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
 
 # Query CreditPulse directly via EVM RPC
 report = w3.eth.contract(address=CONTRACT_ADDRESS, abi=ABI).functions.getRiskReport(asset_address).call()
@@ -64,7 +64,7 @@ print(f"Credit Score: {report[1]}/100, Verified by: {report[12]}")`
 **Track:** Creditcoin Ecosystem / RWA Credit Infrastructure
 **Stage:** Testnet CC3 Operational / Post-Hackathon Seed Round ($500,000)
 **Network Anchor:** Creditcoin CC3 (Chain ID: 102031)
-**Smart Contract:** \`0x358925c5839a36bB2181786B8763Da0653B0f438\` (Verified on Blockscout)
+**Smart Contract:** \`0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5\` (Verified on Blockscout)
 
 ---
 

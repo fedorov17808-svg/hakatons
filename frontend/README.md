@@ -8,7 +8,7 @@
 [![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![Creditcoin](https://img.shields.io/badge/Creditcoin_Testnet-Chain_ID_102031-00E5FF.svg)](https://creditcoin-testnet.blockscout.com)
-[![Smart Contract](https://img.shields.io/badge/Contract-0x3589...f438-7928CA.svg)](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438)
+[![Smart Contract](https://img.shields.io/badge/Contract-0x3589...f438-7928CA.svg)](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5)
 [![Vitest](https://img.shields.io/badge/Vitest-74_Passing-success.svg?style=flat&logo=vitest)](https://vitest.dev/)
 
 </div>
@@ -193,7 +193,7 @@ npm run test
 | **RPC Endpoint** | `https://rpc.cc3-testnet.creditcoin.network` |
 | **Currency Symbol** | `tCTC` |
 | **Block Explorer** | [Creditcoin Blockscout](https://creditcoin-testnet.blockscout.com) |
-| **CreditPulseASC Contract** | [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438) |
+| **CreditPulseASC Contract** | [`0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5`](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5) |
 | **Native Query Verifier Precompile** | `0x0000000000000000000000000000000000000FD2` |
 
 ---

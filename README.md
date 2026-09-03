@@ -203,7 +203,7 @@ $$M_{\text{Lindy}} = \min\left(1.0, \max\left(0.25, \sqrt{\frac{\text{Age}_{\tex
 | **DON Node Beta Auth** | Oracle Validator Registration | `0xb13f5fa2...ed6d2` | #5402303 | [View on Blockscout](https://creditcoin-testnet.blockscout.com/tx/0xb13f5fa24a0439904351400497eafba4f8b98adab5d3435413230fc0e7eed6d2) |
 | **DON Node Gamma Auth** | Oracle Validator Registration | `0x7bb6e6f8...e5768` | #5402304 | [View on Blockscout](https://creditcoin-testnet.blockscout.com/tx/0x7bb6e6f8be7e3e9ac53ea2ebca364f0010d195e5f81fb850451ff2838bce5768) |
 
-The core smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) is deployed on Creditcoin CC3 Testnet at [`0x358925c5839a36bB2181786B8763Da0653B0f438`](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438):
+The core smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulseScore.sol) is deployed on Creditcoin CC3 Testnet at [`0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5`](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5):
 
 ```solidity
 contract CreditPulseASC {

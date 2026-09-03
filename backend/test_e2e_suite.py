@@ -459,7 +459,7 @@ class TestCreditPulseE2E(unittest.TestCase):
     def test_phase_12_onchain_indexer(self):
         """Phase 12: Validate autonomous direct EVM RPC state and token inspection without Web2."""
         indexer = OnChainIndexer(["https://rpc.cc3-testnet.creditcoin.network"])
-        contract_addr = "0x358925c5839a36bB2181786B8763Da0653B0f438"
+        contract_addr = "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
         inspection = indexer.inspect_token_contract(contract_addr)
         
         self.assertTrue(inspection["is_contract"])

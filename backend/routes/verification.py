@@ -21,7 +21,7 @@ from risk_engine import compute_canonical_data_hash, compute_scores
 
 router = APIRouter(tags=["Verification"])
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x358925c5839a36bB2181786B8763Da0653B0f438")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5")
 RPC_URL = os.getenv("RPC_URL", "https://rpc.cc3-testnet.creditcoin.network")
 
 EXTENDED_ABI_JSON = '''[

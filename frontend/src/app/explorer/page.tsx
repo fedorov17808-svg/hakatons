@@ -293,7 +293,7 @@ export default function ExplorerPage() {
               className="bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none w-72 shadow-inner"
             />
             <a
-              href="https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438"
+              href="https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2.5 bg-slate-900 border border-slate-700 hover:border-cyan-500 text-slate-200 text-sm font-medium rounded-xl transition flex items-center gap-2 shadow-sm"
@@ -386,12 +386,12 @@ export default function ExplorerPage() {
             <div className="flex items-center gap-2">
               <span className="text-slate-500">Core Contract:</span>
               <a
-                href="https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438"
+                href="https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-cyan-400 hover:underline font-mono"
               >
-                0x358925c5839a36bB2181786B8763Da0653B0f438
+                0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5
               </a>
             </div>
             <div>

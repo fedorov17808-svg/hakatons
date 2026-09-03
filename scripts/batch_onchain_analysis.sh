@@ -119,5 +119,5 @@ done
 echo ""
 echo "═══════════════════════════════════════════════════════"
 echo "  📊 Results: ${SUCCESS} scored, ${FAILED} failed"
-echo "  🔗 Verify: https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438"
+echo "  🔗 Verify: https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
 echo "═══════════════════════════════════════════════════════"

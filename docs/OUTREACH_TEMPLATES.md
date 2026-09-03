@@ -45,7 +45,7 @@ We're offering free pilot integration for 3 early partner protocols.
 No commitment — just integrate our SDK, test the scores, and give 
 feedback.
 
-Live contract: https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438
+Live contract: https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5
 
 Interested in a 15-min call this week?
 ```

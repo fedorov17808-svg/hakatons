@@ -30,7 +30,7 @@ import { CreditPulseSDK } from '@creditpulse/sdk';
 // Initialize with Creditcoin CC3 Testnet
 const sdk = new CreditPulseSDK({
   rpcUrl: 'https://rpc.cc3-testnet.creditcoin.network',
-  contractAddress: '0x358925c5839a36bB2181786B8763Da0653B0f438',
+  contractAddress: '0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5',
 });
 
 // Analyze credit risk for any EVM address

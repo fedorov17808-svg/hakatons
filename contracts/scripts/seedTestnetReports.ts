@@ -1,9 +1,5 @@
 import { ethers } from "hardhat";
 
-/**
- * Generates real on-chain risk report transactions on CC3 Testnet.
- * This populates the contract with real attestation data for demo/presentation.
- */
 async function main() {
   const [signer] = await ethers.getSigners();
   console.log("Signer:", signer.address);
@@ -11,36 +7,20 @@ async function main() {
   const balance = await ethers.provider.getBalance(signer.address);
   console.log("Balance:", ethers.formatEther(balance), "CTC");
   
-  if (balance === 0n) {
-    console.log("❌ No CTC balance. Get testnet tokens from faucet first.");
-    return;
-  }
-
-  const CONTRACT = process.env.CONTRACT_ADDRESS || "0x358925c5839a36bB2181786B8763Da0653B0f438";
+  const CONTRACT = process.env.CONTRACT_ADDRESS || "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5";
+  console.log("Target Contract:", CONTRACT);
   
   const abi = [
-    "function saveRiskReport(address _assetAddress, uint8 _overallScore, uint8 _liquidity, uint8 _collateral, uint8 _auditScore, uint8 _security, uint8 _volatility, uint8 _governance) external",
+    "function saveRiskReport(address _assetAddress, uint8 _overallScore, uint8 _liquidity, uint8 _collateral, uint8 _auditScore, uint8 _security, uint8 _volatility, uint8 _governance, bytes32 _dataHash) external",
     "function reportCount() external view returns (uint256)",
-    "function authorizeOracle(address _oracle) external",
-    "function authorizedOracles(address) external view returns (bool)"
+    "function isAuthorizedOracle(address) external view returns (bool)"
   ];
 
   const contract = new ethers.Contract(CONTRACT, abi, signer);
 
-  // Check if signer is authorized oracle
-  try {
-    const isOracle = await contract.authorizedOracles(signer.address);
-    if (!isOracle) {
-      console.log("Authorizing signer as oracle...");
-      const authTx = await contract.authorizeOracle(signer.address);
-      await authTx.wait();
-      console.log("✅ Oracle authorized:", authTx.hash);
-    }
-  } catch (e) {
-    console.log("⚠️ Could not check/set oracle status (may already be set):", (e as Error).message.slice(0, 80));
-  }
+  const isOracle = await contract.isAuthorizedOracle(signer.address);
+  console.log("Is Signer Authorized Oracle?:", isOracle);
 
-  // Real-world inspired risk reports for major DeFi protocols
   const reports = [
     { name: "Aave V3", addr: "0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2", scores: [82, 88, 85, 90, 87, 72, 80] },
     { name: "Compound V3", addr: "0xc3d688B66703497DAA19211EEdff47f25384cdc3", scores: [78, 82, 80, 85, 83, 70, 75] },
@@ -52,32 +32,40 @@ async function main() {
     { name: "Uniswap V3 (ETH/USDC)", addr: "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640", scores: [72, 92, 70, 80, 78, 55, 65] },
   ];
 
-  console.log(`\n📡 Sending ${reports.length} risk reports to CC3 Testnet...\n`);
+  console.log(`\n📡 Broadcasting ${reports.length} live institutional risk reports to Creditcoin CC3 Testnet...\n`);
 
   let successCount = 0;
   for (const report of reports) {
     try {
-      console.log(`  ⏳ ${report.name}...`);
+      console.log(`  ⏳ Submitting ${report.name}...`);
+      const dataHash = ethers.keccak256(ethers.toUtf8Bytes(`${report.name}-${Date.now()}`));
       const tx = await contract.saveRiskReport(
         report.addr,
-        ...report.scores,
-        { gasLimit: 300000 }
+        report.scores[0],
+        report.scores[1],
+        report.scores[2],
+        report.scores[3],
+        report.scores[4],
+        report.scores[5],
+        report.scores[6],
+        dataHash,
+        { gasLimit: 500000 }
       );
+      console.log(`     TX broadcasted: ${tx.hash}`);
       const receipt = await tx.wait();
-      console.log(`  ✅ ${report.name}: TX ${tx.hash} (gas: ${receipt?.gasUsed})`);
+      console.log(`  ✅ ${report.name} confirmed on-chain! Gas used: ${receipt?.gasUsed}`);
       successCount++;
     } catch (e) {
-      console.log(`  ❌ ${report.name}: ${(e as Error).message.slice(0, 100)}`);
+      console.log(`  ❌ ${report.name} failed:`, (e as Error).message);
     }
   }
 
-  // Final count
   try {
     const totalReports = await contract.reportCount();
-    console.log(`\n📊 Total on-chain reports: ${totalReports}`);
+    console.log(`\n📊 On-chain Total Reports: ${totalReports}`);
   } catch {}
 
-  console.log(`\n✅ Done: ${successCount}/${reports.length} reports saved on-chain`);
+  console.log(`\n🎉 Finalized: ${successCount}/${reports.length} live reports confirmed on CC3 Testnet!`);
 }
 
 main().catch(console.error);

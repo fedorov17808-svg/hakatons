@@ -479,7 +479,7 @@ PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 _recent_records = {}
 RECORD_COOLDOWN = 30
 
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x358925c5839a36bB2181786B8763Da0653B0f438")
+CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS", "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5")
 EXTENDED_ABI_JSON = '''[
     {"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8[7]","name":"_scores","type":"uint8[7]"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"},{"internalType":"bytes32","name":"_aiDigest","type":"bytes32"},{"internalType":"address[]","name":"_signers","type":"address[]"},{"internalType":"bytes[]","name":"_signatures","type":"bytes[]"}],"name":"saveRiskReportMultiSigned","outputs":[],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[{"internalType":"address","name":"_assetAddress","type":"address"},{"internalType":"uint8","name":"_overallScore","type":"uint8"},{"internalType":"uint8","name":"_liquidity","type":"uint8"},{"internalType":"uint8","name":"_collateral","type":"uint8"},{"internalType":"uint8","name":"_auditScore","type":"uint8"},{"internalType":"uint8","name":"_security","type":"uint8"},{"internalType":"uint8","name":"_volatility","type":"uint8"},{"internalType":"uint8","name":"_governance","type":"uint8"},{"internalType":"bytes32","name":"_dataHash","type":"bytes32"},{"internalType":"bytes32","name":"_aiDigest","type":"bytes32"}],"name":"saveRiskReportWithDigest","outputs":[],"stateMutability":"nonpayable","type":"function"},

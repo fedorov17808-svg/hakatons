@@ -124,7 +124,7 @@ Collateral • Liquidity • Smart Contract • Oracle • Governance • Volati
 - ✅ Security hardened: ReentrancyGuard, CSP, rate limiting
 - ✅ Published npm SDK: `@creditpulse/sdk`
 
-**Live Contract:** [View on Blockscout](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438)
+**Live Contract:** [View on Blockscout](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5)
 
 ---
 
@@ -222,6 +222,6 @@ Collateral • Liquidity • Smart Contract • Oracle • Governance • Volati
 - 🐦 Twitter: @CreditPulseAI
 - 💬 Telegram: @creditpulse_dev
 - 📦 GitHub: github.com/creditpulse
-- 📋 Contract: [View on Blockscout](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438)
+- 📋 Contract: [View on Blockscout](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5)
 
 *"Making DeFi lending decisions as informed as Wall Street"*

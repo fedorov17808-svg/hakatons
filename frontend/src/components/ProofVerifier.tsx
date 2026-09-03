@@ -211,7 +211,7 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
             <button
               type="button"
               onClick={() => {
-                const sample = "0x358925c5839a36bb2181786b8763da0653b0f43818e8fcc30fd2aa11e49b8821";
+                const sample = "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da518e8fcc30fd2aa11e49b8821";
                 setAttestcoinTxHash(sample);
                 verifyAttestation(sample);
               }}

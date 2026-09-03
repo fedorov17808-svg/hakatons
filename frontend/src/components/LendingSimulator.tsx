@@ -143,7 +143,7 @@ export function LendingSimulator({ score, protocolName }: LendingSimulatorProps)
           </span>
         </div>
         <a
-          href="https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438"
+          href="https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
           target="_blank"
           rel="noopener noreferrer"
           className="text-cyan-400 hover:text-cyan-300 font-mono text-[11px] whitespace-nowrap underline flex items-center gap-1"

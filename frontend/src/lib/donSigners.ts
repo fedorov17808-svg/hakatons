@@ -46,7 +46,7 @@ const EIP712_DOMAIN = {
   name: "CreditPulse AI ASC",
   version: "7.3.0",
   chainId: 102031, // Creditcoin Testnet CC3
-  verifyingContract: "0x358925c5839a36bB2181786B8763Da0653B0f438"
+  verifyingContract: "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
 };
 
 const EIP712_TYPES = {

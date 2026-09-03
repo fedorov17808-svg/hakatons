@@ -77,7 +77,7 @@ export class CreditPulseSDK {
   constructor(config: CreditPulseConfig = {}) {
     this.rpcUrl = config.rpcUrl ?? "https://rpc.cc3-testnet.creditcoin.network";
     this.contractAddress =
-      config.contractAddress ?? "0x358925c5839a36bB2181786B8763Da0653B0f438";
+      config.contractAddress ?? "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5";
     this.maxRetries = config.maxRetries ?? 3;
     this.retryDelayMs = config.retryDelayMs ?? 1000;
 

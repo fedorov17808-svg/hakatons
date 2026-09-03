@@ -24,7 +24,7 @@ def test_live_cc3():
     print(f"✅ Connected to Live Creditcoin CC3 (Chain ID 102031)")
     print(f"   Current Block Height: #{block:,}")
     
-    contract_addr = "0x358925c5839a36bB2181786B8763Da0653B0f438"
+    contract_addr = "0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5"
     code = w3.eth.get_code(Web3.to_checksum_address(contract_addr))
     print(f"   Smart Contract on CC3: {contract_addr}")
     print(f"   Bytecode Size: {len(code):,} bytes (VERIFIED DEPLOYED)")

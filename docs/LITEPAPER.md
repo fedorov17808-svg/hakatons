@@ -107,7 +107,7 @@ CreditPulse creates **direct demand drivers** for the native $CTC token:
 - **CreditPulseASC.sol** — Core scoring & attestation contract
 - **CreditPulseInsurancePool.sol** — Junior/Senior tranche insurance
 - **CreditPulseLendingPool.sol** — Example integration for lending protocols
-- All contracts verified on [Blockscout](https://creditcoin-testnet.blockscout.com/address/0x358925c5839a36bB2181786B8763Da0653B0f438)
+- All contracts verified on [Blockscout](https://creditcoin-testnet.blockscout.com/address/0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5)
 
 ### Test Coverage
 - **149 automated tests** (71 Solidity + 78 TypeScript)
