@@ -34,14 +34,38 @@ export interface DONValidatorNode {
 }
 
 const DON_SEEDS = [
-  { id: "node-alpha", name: "Node Alpha (Primary Validator)", seed: "CreditPulse-DON-Validator-Alpha-v8.5", region: "AWS us-east-1 (N. Virginia)" },
-  { id: "node-beta", name: "Node Beta (Consensus Secondary)", seed: "CreditPulse-DON-Validator-Beta-v8.5", region: "GCP europe-west3 (Frankfurt)" },
-  { id: "node-gamma", name: "Node Gamma (Quorum Witness)", seed: "CreditPulse-DON-Validator-Gamma-v8.5", region: "Hetzner hel1 (Helsinki)" }
+  { id: "node-alpha", name: "Node Alpha (Primary Validator)", envKey: "DON_ALPHA_PRIVATE_KEY", envSeed: "DON_ALPHA_SEED", seed: "CreditPulse-DON-Validator-Alpha-v8.5", region: "AWS us-east-1 (N. Virginia)" },
+  { id: "node-beta", name: "Node Beta (Consensus Secondary)", envKey: "DON_BETA_PRIVATE_KEY", envSeed: "DON_BETA_SEED", seed: "CreditPulse-DON-Validator-Beta-v8.5", region: "GCP europe-west3 (Frankfurt)" },
+  { id: "node-gamma", name: "Node Gamma (Quorum Witness)", envKey: "DON_GAMMA_PRIVATE_KEY", envSeed: "DON_GAMMA_SEED", seed: "CreditPulse-DON-Validator-Gamma-v8.5", region: "Hetzner hel1 (Helsinki)" }
 ];
+
+let warnedInsecureDonFallback = false;
+
+/**
+ * Resolves each node's real private key, preferring (in order): an explicit
+ * DON_*_PRIVATE_KEY env var, a DON_*_SEED env var (derived via keccak256), and
+ * only then the hardcoded public-string fallback — warning once when that
+ * fallback is actually used, since it's the insecure, publicly-derivable path.
+ */
+function resolveDonPrivateKey(s: (typeof DON_SEEDS)[number]): string {
+  const directKey = process.env[s.envKey];
+  if (directKey && /^0x[a-fA-F0-9]{64}$/.test(directKey)) {
+    return directKey;
+  }
+  const customSeed = process.env[s.envSeed];
+  if (customSeed) {
+    return ethers.keccak256(ethers.toUtf8Bytes(customSeed));
+  }
+  if (!warnedInsecureDonFallback) {
+    warnedInsecureDonFallback = true;
+    console.warn(`[donSigners] No ${s.envKey}/${s.envSeed} set for any DON node — falling back to keys derived from hardcoded public strings. These are not secret; set real values before treating DON consensus as more than a demo.`);
+  }
+  return ethers.keccak256(ethers.toUtf8Bytes(s.seed));
+}
 
 export function getDONValidatorNodes(): DONValidatorNode[] {
   return DON_SEEDS.map((s) => {
-    const pk = ethers.keccak256(ethers.toUtf8Bytes(s.seed));
+    const pk = resolveDonPrivateKey(s);
     const wallet = new ethers.Wallet(pk);
     return {
       node_id: s.id,

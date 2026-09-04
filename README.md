@@ -45,7 +45,7 @@
 | Component | Status | Details |
 |:---|:---:|:---|
 | **Smart Contract (`CreditPulseASC` v7.3.0)** | 🟢 **Production** | Deployed & verified on CC3 testnet. OpenZeppelin ReentrancyGuard + Pausable. 71 Hardhat tests including EIP-2 anti-malleability, UUPS upgradeability, insurance pool dual-tranche with 24h withdrawal cooldown. |
-| **Unified Scoring Engine** | 🟢 **Production** | 7-vector scoring, sector-adaptive weights, 5-layer circuit breakers, Lindy curve. 100% parity across Next.js and FastAPI. |
+| **Unified Scoring Engine** | 🟢 **Production** | 7-vector scoring, sector-adaptive weights, 5-layer circuit breakers, Lindy curve. Implemented independently in both Next.js (`lib/quantEngine.ts`, canonical for the live deployment) and FastAPI (`quant_risk.py`) — the two currently use different VaR/CVaR confidence levels and jump-diffusion parameters, not full parity; see [SECURITY_AUDIT.md](SECURITY_AUDIT.md) addendum. |
 | **Merton & Jump-Diffusion Model** | 🟢 **Production** | Structural default probabilities, distance-to-default, 99% VaR and Expected Shortfall with rating modifier. |
 | **Price Oracle Cascade** | 🟢 **Production** | Live Binance ticker + DeFiLlama API with in-memory TTL caching. |
 | **DON Multi-Oracle Quorum** | 🟢 **Production** | Distributed 2-of-3 BFT quorum via real HTTP calls to independent FastAPI validator nodes (ports 8011-8013). Each node independently fetches data from diverse sources (DeFiLlama/DexScreener/RPC), verifies scores within ±2 tolerance, and signs attestations. Automatic fallback to local deterministic signing if nodes unreachable, clearly labeled as `LOCAL_FALLBACK`. Launch: `./backend/scripts/start_don.sh` |
@@ -61,9 +61,9 @@ CreditPulse uses a **dual-stack** architecture by design:
 | Layer | Technology | Role |
 |:---|:---|:---|
 | **Primary API (Serverless)** | Next.js 16 API Routes (`/api/*`) | Self-contained deployment. All scoring, DON consensus, Attestcoin verification, and on-chain recording run directly in the Next.js edge runtime. **This is the canonical entry point for the testnet deployment.** |
-| **Extended Analytics API** | FastAPI (Python) | Advanced quantitative analytics, keeper daemon, batch processing, and production-grade risk engine with NumPy/SciPy. Connects to the same on-chain contracts. |
+| **Extended Analytics API** | FastAPI (Python) | Keeper daemon, batch processing, and a second risk engine (`quant_risk.py`) — a plain-Python Monte Carlo implementation (stdlib `random`, no NumPy/SciPy dependency). Connects to the same on-chain contracts, but is **not** used by the live production frontend. |
 
-**Why both?** The Next.js API routes enable a **zero-infrastructure deployment** (single `npm run dev`), while the FastAPI backend provides **production-grade** Python quant capabilities (Monte Carlo, scipy.stats, NumPy matrix operations) that are impractical in a JavaScript runtime.
+**Why both?** The Next.js API routes are the canonical, zero-infrastructure production path (single `npm run dev`, no separate process). The FastAPI backend predates that consolidation and still hosts the keeper daemon, DON validator node scripts, and batch-analysis tooling — useful for local exploration (`/docs` Swagger UI, `python -m pytest`) but optional; nothing in it is required for the deployed app to work.
 
 ---
 
