@@ -1,19 +1,15 @@
 "use client";
 
 import React from "react";
+import { DONNodeItem } from "@/lib/config";
 
 type SubmissionMode = "direct" | "relayer";
 
 interface ExecutionModeSwitcherProps {
   mode: SubmissionMode;
   onModeChange: (mode: SubmissionMode) => void;
+  donNodes?: DONNodeItem[];
 }
-
-const DON_NODES = [
-  { name: "Node 1 (AWS)", region: "us-east-1" },
-  { name: "Node 2 (GCP)", region: "europe-west3" },
-  { name: "Node 3 (BareMetal)", region: "tokyo-1" },
-];
 
 /**
  * Execution Mode Switcher — toggle between Direct MetaMask
@@ -22,7 +18,11 @@ const DON_NODES = [
 export function ExecutionModeSwitcher({
   mode,
   onModeChange,
+  donNodes = [],
 }: ExecutionModeSwitcherProps) {
+  const isOnline = (n: DONNodeItem) => (n.status || "").toUpperCase() === "ONLINE";
+  const onlineCount = donNodes.filter(isOnline).length;
+
   return (
     <div className="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -67,26 +67,33 @@ export function ExecutionModeSwitcher({
       </div>
 
       {/* DON Validator Cluster Live Status */}
-      <div className="pt-2 border-t border-slate-800/80">
-        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-2">
-          <span>Federated DON Cluster (2-of-3 BFT Quorum):</span>
-          <span className="text-cyan-400">{DON_NODES.length} Nodes Online</span>
+      {donNodes.length > 0 && (
+        <div className="pt-2 border-t border-slate-800/80">
+          <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-2">
+            <span>Federated DON Cluster (2-of-3 BFT Quorum):</span>
+            <span className={onlineCount >= 2 ? "text-cyan-400" : "text-amber-400"}>
+              {onlineCount} / {donNodes.length} Nodes Online
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
+            {donNodes.map((node) => {
+              const online = isOnline(node);
+              return (
+                <div
+                  key={node.node_id || node.name}
+                  className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
+                    <span className="text-slate-300">{node.name}</span>
+                  </div>
+                  <span className="text-slate-500 text-[10px]">{online ? node.region : (node.status || 'OFFLINE')}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-          {DON_NODES.map((node) => (
-            <div
-              key={node.name}
-              className="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="text-slate-300">{node.name}</span>
-              </div>
-              <span className="text-slate-500 text-[10px]">{node.region}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,12 @@ import { applyRateLimit, sanitizeString, sanitizeEmail, safeErrorResponse } from
 
 export const dynamic = "force-dynamic";
 
-const WAITLIST_FILE = path.join(process.cwd(), ".waitlist_submissions.json");
+// Vercel's serverless functions have a read-only filesystem outside /tmp — process.cwd()
+// is not writable in production and every submission would 500. /tmp is writable but is
+// NOT durable across cold starts or separate instances, so every submission is also
+// logged to stdout (visible via `vercel logs`) as a backstop until this moves to a real
+// datastore (Vercel KV/Postgres).
+const WAITLIST_FILE = path.join("/tmp", "creditpulse_waitlist_submissions.json");
 
 // Max submissions to prevent disk abuse
 const MAX_SUBMISSIONS = 10_000;
@@ -64,6 +69,7 @@ export async function POST(req: NextRequest) {
 
     list.push(submission);
     fs.writeFileSync(WAITLIST_FILE, JSON.stringify(list, null, 2), "utf8");
+    console.log("[waitlist] new submission", JSON.stringify(submission));
 
     return NextResponse.json({
       success: true,
@@ -75,6 +81,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// Public: aggregate count only. Individual submissions (org, protocol type, contact
+// info) are business-sensitive and were previously exposed to any caller — this route
+// is unauthenticated, so it must never return per-entry data.
 export async function GET(req: Request) {
   const rateLimitResponse = applyRateLimit(req, 30, 60_000);
   if (rateLimitResponse) return rateLimitResponse;
@@ -91,11 +100,5 @@ export async function GET(req: Request) {
   }
   return NextResponse.json({
     total_waitlist_count: list.length,
-    submissions: list.map((s) => ({
-      id: s.id,
-      organization: s.organization,
-      protocolType: s.protocolType,
-      timestamp: s.timestamp,
-    })),
   });
 }

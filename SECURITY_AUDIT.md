@@ -99,4 +99,30 @@ All 9 functions with `.call{value}` protected by `nonReentrant` + CEI pattern:
 
 ---
 
-## Verdict: **PRODUCTION READY** ✅
+## Verdict (2026-09-02): **PRODUCTION READY** ✅
+
+---
+
+## Addendum — 2026-09-05 external review
+
+The claim above predates a full production audit run today, which found and fixed real issues this table didn't capture. Recorded here rather than editing the original numbers, so the history stays honest.
+
+**Fixed today:**
+| Issue | Severity | Fix |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` on the live Vercel frontend pointed at a stale, incomplete legacy backend — every on-chain feature (record, record-verified, don/consensus, stats, analyze, tx-status, zktls) silently called the wrong host for weeks | Critical (functional, not exploitable) | Removed the env var; frontend now calls its own Next.js API routes |
+| `/api/record-verified` was a stub that never called `saveVerifiedRiskReport`, fabricating a local hash as if it were a real tx | Critical (credibility) | Real proof fetch + on-chain broadcast attempt, honest degrade otherwise |
+| `DONClusterMonitor.tsx`, `dashboard/page.tsx`, `ExecutionModeSwitcher.tsx` showed DON validator nodes as "online" with fake latency even when the API honestly reported all 3 as `OFFLINE`/`LOCAL_FALLBACK`; `ExecutionModeSwitcher.tsx` in particular rendered a fully hardcoded, never-wired-to-real-data "3 Nodes Online" widget | High (credibility) | All three now reflect real `status`/`health` fields |
+| `RiskMetrics.tsx` labeled a stale fallback ETH price "Live Oracle Price" with a hardcoded `2,505` default, ignoring the already-honest `price_source` field | Medium (credibility) | Now shows the real source and labels fallback state |
+| `/api/record-don` trusted client-supplied `signers`/`signatures` at face value if ≥2 were provided, returning `DON_CONSENSUS_REACHED` for arbitrary forged input | Medium | Added `verifyDONQuorumSignatures()` — rejects and regenerates unless every signature cryptographically recovers to a known DON address for the exact message |
+| `/api/waitlist` POST wrote to `process.cwd()`, which is read-only on Vercel — **every signup on the live homepage failed with a 500** | High (functional) | Moved to `/tmp` + stdout logging as a durability backstop (not a full fix — see Known limitation below) |
+| `/api/waitlist` GET was unauthenticated and returned every submission's org/protocol/timestamp to any caller | Medium | Now returns aggregate count only |
+| `don/consensus` accepted an unbounded/negative `quorum` param | Low | Clamped to `[1,3]` |
+| README Solidity snippet claimed `VERSION = "7.2.0"`; on-chain `VERSION()` returns `"7.3.0"` | Low (credibility) | Corrected |
+| Deployed contract `0x5BEC88F55ECA9038A9f03E77052314EfDC293Da5` was verified on Blockscout under an unrelated `StubContract.sol` source instead of the real one | High (credibility) | Re-verified via `npx hardhat verify` — now shows "exact match" against the real source |
+
+**Known limitations, not fixed tonight (flagged, not silently left as "0 remaining"):**
+- **DON/oracle fallback signer keys are derived from hardcoded public strings** (`donSigners.ts`, `oracleSigner.ts`) — anyone can recompute them from source. Confirmed these addresses are *not* in the on-chain `isAuthorizedOracle` set, so a forged off-chain "DON consensus" cannot get a real transaction accepted on-chain — but a sophisticated attacker (not just a naive one) could still produce a signature that passes today's new `verifyDONQuorumSignatures()` check, since it only checks against this same publicly-derivable address set. Needs real per-node key management (KMS/Vault/HSM, or at minimum a private `VALIDATOR_KEY_SEED`/`DON_*_SEED` env var) before this "federated oracle" story should be treated as more than a demo.
+- **Waitlist storage is not durable** — `/tmp` survives a warm serverless instance but not cold starts or multiple concurrent instances; submissions are also logged to stdout as a backstop, but there's no real database. Fine for a demo, not for real early-access intake.
+- **Rate limiter is in-memory per-instance** — resets on cold start, not shared across Vercel's concurrent instances. A soft speed bump, not real abuse protection.
+- On-chain claims in `README.md`'s "Verified On-Chain Transactions" table (6 entries) were independently spot-checked against Blockscout/RPC today and are genuinely real (correct method, correct block) — this is a real strength, not a gap.

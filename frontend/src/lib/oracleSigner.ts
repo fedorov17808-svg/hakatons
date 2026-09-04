@@ -1,17 +1,24 @@
 import { ethers } from "ethers";
 
 /**
- * Derives a secure validator key from environment (e.g. Cloud KMS / HSM in production)
- * or creates a deterministic ephemeral test validator key for development and testnet sessions.
- * 
- * SECURITY ARCHITECTURE NOTE:
- * Testnet/devnet environments use an ephemeral seed derivation to avoid static key leakage.
- * Production deployments require KMS/Vault/HSM-backed transaction signing with strict IAM role bindings.
+ * Uses PRIVATE_KEY/ORACLE_PRIVATE_KEY from environment when set (e.g. Cloud KMS / HSM
+ * in production). If unset, falls back to a key derived from VALIDATOR_KEY_SEED, or —
+ * if that's unset too — from a hardcoded public string committed in this file.
+ *
+ * SECURITY WARNING, not a mitigation: a key derived from a string anyone can read in
+ * this public repo is exactly as exposed as committing the key itself — deriving it
+ * via keccak256 adds no secrecy. This fallback exists only so local/demo runs never
+ * crash for lack of a key; it must never be treated as a real validator identity, and
+ * nothing that signs with it should be authorized on real funds or a real deployment.
+ * Set VALIDATOR_KEY_SEED (or PRIVATE_KEY/ORACLE_PRIVATE_KEY) before any real use.
  */
 function getValidatorPrivateKey(): string {
   const envKey = process.env.PRIVATE_KEY || process.env.ORACLE_PRIVATE_KEY;
   if (envKey && /^0x[a-fA-F0-9]{64}$/.test(envKey)) {
     return envKey;
+  }
+  if (!process.env.VALIDATOR_KEY_SEED) {
+    console.warn("[oracleSigner] No VALIDATOR_KEY_SEED/PRIVATE_KEY set — signing with a key derived from a public, hardcoded seed. This identity is not secret and must not be authorized on real funds.");
   }
   const ephemeralSeed = process.env.VALIDATOR_KEY_SEED || "CreditPulse-Enterprise-Devnet-Signer-v8.5";
   return ethers.keccak256(ethers.toUtf8Bytes(ephemeralSeed));

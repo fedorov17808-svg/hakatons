@@ -207,7 +207,7 @@ The core smart contract [`CreditPulseScore.sol`](contracts/contracts/CreditPulse
 
 ```solidity
 contract CreditPulseASC {
-    string public constant VERSION = "7.2.0";
+    string public constant VERSION = "7.3.0";
     
     // BFT Multi-Oracle Threshold Quorum (2-of-3 ECDSA Signatures)
     function saveRiskReportMultiSigned(

@@ -5,9 +5,22 @@ import { ethers } from "ethers";
  * Provides genuine multi-node ECDSA EIP-712 and Packed Ethereum Signed Message signing
  * for 2-of-3 BFT Quorum consensus on Creditcoin CC3.
  *
- * SECURITY ARCHITECTURE NOTE:
- * Testnet/devnet environments use deterministic ephemeral seed derivation to avoid static key leakage.
- * Production deployments require KMS/Vault/HSM-backed transaction signing with strict IAM role bindings.
+ * SECURITY WARNING: these validator keys are derived from hardcoded public strings
+ * (DON_SEEDS below) via keccak256 — that is NOT secret key management, it's equivalent
+ * to publishing the private keys directly, since anyone can recompute them from this
+ * source file. This exists only so the local-fallback demo path always has something
+ * to sign with when real KMS/Vault/HSM-backed keys aren't configured.
+ *
+ * Confirmed these addresses are NOT in the on-chain `isAuthorizedOracle` set used by
+ * `contracts/scripts/deploy.ts` — so a forged signature from this fallback identity
+ * cannot get a real transaction accepted on-chain (the contract independently checks
+ * real authorization). But verifyDONQuorumSignatures() below only checks a signature
+ * recovers to *one of these* addresses — since the underlying key is publicly
+ * derivable, that check stops a naive spoofer (random signers/signatures) but NOT a
+ * determined one who reads this file and derives the same key. Treat the resulting
+ * "DON_CONSENSUS_REACHED" response as demo-grade, not as cryptographic proof of real
+ * multi-party federation, until this fallback is replaced with real per-node key
+ * management.
  */
 
 export interface DONValidatorNode {
@@ -132,13 +145,12 @@ export async function generateDONQuorumSignatures(
  *   require(signer > lastSigner, "Signers must be sorted and unique");
  *   bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
  */
-export async function generateDONPackedQuorumSignatures(
-  payload: DONSignaturePayload,
-  requiredQuorum: number = 2
-): Promise<{ signers: string[]; signatures: string[]; quorumReached: boolean; messageHash: string }> {
-  const nodes = getDONValidatorNodes();
-  const selectedNodes = nodes.slice(0, Math.min(requiredQuorum, nodes.length));
-
+/**
+ * Computes the same packed message hash CreditPulseASC.sol reconstructs on-chain
+ * for saveRiskReportMultiSigned, so both signature generation and verification
+ * (see verifyDONQuorumSignatures below) agree on exactly what was signed.
+ */
+export function computeDonMessageHash(payload: DONSignaturePayload): string {
   const checksumTarget = ethers.getAddress(payload.assetAddress);
   const scores = [
     Math.round(payload.overallScore),
@@ -154,12 +166,53 @@ export async function generateDONPackedQuorumSignatures(
     ? payload.dataHash
     : ethers.keccak256(ethers.toUtf8Bytes(checksumTarget));
 
-  const messageHash = ethers.keccak256(
+  return ethers.keccak256(
     ethers.solidityPacked(
       ["address", "uint8", "uint8", "uint8", "uint8", "uint8", "uint8", "uint8", "bytes32"],
       [checksumTarget, scores[0], scores[1], scores[2], scores[3], scores[4], scores[5], scores[6], dataHashBytes]
     )
   );
+}
+
+/**
+ * Verifies that every (signer, signature) pair actually recovers to a DON address
+ * that is part of the live validator set, for this exact message. Used to reject
+ * client-supplied "consensus" data before it's presented as DON-verified.
+ */
+export function verifyDONQuorumSignatures(
+  signers: unknown,
+  signatures: unknown,
+  messageHash: string,
+  minQuorum: number = 2
+): boolean {
+  if (!Array.isArray(signers) || !Array.isArray(signatures)) return false;
+  if (signers.length < minQuorum || signers.length !== signatures.length) return false;
+
+  const authorized = new Set(getDONValidatorNodes().map(n => n.address.toLowerCase()));
+  const verified = new Set<string>();
+
+  for (let i = 0; i < signers.length; i++) {
+    if (typeof signers[i] !== "string" || typeof signatures[i] !== "string") return false;
+    try {
+      const recovered = ethers.verifyMessage(ethers.getBytes(messageHash), signatures[i] as string);
+      if (recovered.toLowerCase() !== (signers[i] as string).toLowerCase()) return false;
+      if (!authorized.has(recovered.toLowerCase())) return false;
+      verified.add(recovered.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+
+  return verified.size >= minQuorum;
+}
+
+export async function generateDONPackedQuorumSignatures(
+  payload: DONSignaturePayload,
+  requiredQuorum: number = 2
+): Promise<{ signers: string[]; signatures: string[]; quorumReached: boolean; messageHash: string }> {
+  const nodes = getDONValidatorNodes();
+  const selectedNodes = nodes.slice(0, Math.min(requiredQuorum, nodes.length));
+  const messageHash = computeDonMessageHash(payload);
 
   const signedItems: Array<{ signer: string; signature: string }> = [];
 

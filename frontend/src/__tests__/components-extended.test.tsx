@@ -43,9 +43,25 @@ describe('ExecutionModeSwitcher', () => {
     expect(screen.getByText(/Execution Mode/i)).toBeInTheDocument()
   })
 
-  it('renders DON node status', () => {
+  it('omits DON cluster status when no node data is available', () => {
     render(<ExecutionModeSwitcher mode="direct" onModeChange={vi.fn()} />)
-    expect(screen.getByText(/Node 1/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Federated DON Cluster/i)).not.toBeInTheDocument()
+  })
+
+  it('renders real DON node status and honestly reflects offline nodes', () => {
+    render(
+      <ExecutionModeSwitcher
+        mode="direct"
+        onModeChange={vi.fn()}
+        donNodes={[
+          { node_id: 'node-alpha', name: 'Node Alpha (Primary Validator)', address: '0xabc', region: 'AWS us-east-1', status: 'OFFLINE', latency_ms: 3.9 },
+          { node_id: 'node-beta', name: 'Node Beta (Consensus Secondary)', address: '0xdef', region: 'GCP europe-west3', status: 'ONLINE', latency_ms: 12 },
+        ]}
+      />
+    )
+    expect(screen.getByText(/Node Alpha/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 \/ 2 Nodes Online/i)).toBeInTheDocument()
+    expect(screen.getByText('OFFLINE')).toBeInTheDocument()
   })
 })
 

@@ -13,7 +13,8 @@ interface ProtocolStats {
 }
 
 interface DonNode {
-  id: string;
+  node_id: string;
+  name: string;
   status: string;
   latency_ms: number;
 }
@@ -42,7 +43,7 @@ export default function DashboardPage() {
       if (statsRes.status === "fulfilled" && statsRes.value) {
         const s = statsRes.value;
         formattedStats = {
-          reportCount: s.total_reports_onchain ?? s.reportCount ?? 6,
+          reportCount: s.total_reports_onchain ?? s.reportCount ?? null,
           verifiedProofCount: s.verified_cross_chain_proofs ?? s.verifiedProofCount ?? 0,
           totalOracleStake: s.total_oracle_stake_ctc ?? s.totalOracleStake ?? "0.0",
           insurancePoolBalance: s.insurance_pool_ctc ?? s.insurancePoolBalance ?? "0.0",
@@ -139,7 +140,11 @@ export default function DashboardPage() {
                   />
                   <StatusRow
                     label="DON Cluster"
-                    status={data.donNodes.length >= 3 ? "operational" : data.donNodes.length > 0 ? "degraded" : "unknown"}
+                    status={
+                      data.donNodes.filter(n => n.status?.toUpperCase() === "ONLINE").length >= 2
+                        ? "operational"
+                        : data.donNodes.length > 0 ? "degraded" : "unknown"
+                    }
                   />
                   <StatusRow
                     label="Contract"
@@ -155,19 +160,20 @@ export default function DashboardPage() {
                   <p className="text-slate-500 text-sm">No nodes responding</p>
                 ) : (
                   <div className="space-y-3">
-                    {data.donNodes.map((node) => (
-                      <div key={node.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className={`w-2.5 h-2.5 rounded-full ${
-                            node.status === "online" ? "bg-emerald-400" : "bg-amber-400"
-                          }`} />
-                          <span className="text-sm font-medium text-slate-300">{node.id}</span>
+                    {data.donNodes.map((node) => {
+                      const online = node.status?.toUpperCase() === "ONLINE";
+                      return (
+                        <div key={node.node_id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`w-2.5 h-2.5 rounded-full ${online ? "bg-emerald-400" : "bg-red-400"}`} />
+                            <span className="text-sm font-medium text-slate-300">{node.name || node.node_id}</span>
+                          </div>
+                          <span className="text-xs font-mono text-slate-500">
+                            {online ? `${node.latency_ms}ms` : node.status}
+                          </span>
                         </div>
-                        <span className="text-xs font-mono text-slate-500">
-                          {node.latency_ms}ms
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

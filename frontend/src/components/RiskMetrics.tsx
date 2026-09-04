@@ -163,8 +163,19 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
               <span className="text-slate-200 font-bold">{telem.transaction_count ?? 0} txs</span>
             </div>
             <div className="bg-slate-950/60 border border-slate-800/80 rounded px-2 py-1 col-span-2 sm:col-span-1">
-              <span className="text-slate-500 block text-[9px]">Live Oracle Price</span>
-              <span className="text-cyan-300 font-bold">${telem.live_eth_price_usd?.toLocaleString() || "2,505"}</span>
+              <span className="text-slate-500 block text-[9px]">
+                {telem.price_source?.includes("Live") ? "Live Oracle Price" : "Oracle Price (Fallback)"}
+              </span>
+              {telem.live_eth_price_usd != null ? (
+                <span className={`font-bold ${telem.price_source?.includes("Live") ? "text-cyan-300" : "text-amber-400"}`}>
+                  ${telem.live_eth_price_usd.toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-slate-500 font-bold">—</span>
+              )}
+              {telem.price_source && (
+                <span className="text-slate-600 block text-[8px] truncate">{telem.price_source}</span>
+              )}
             </div>
           </div>
 

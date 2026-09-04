@@ -1,7 +1,7 @@
 import { applyRateLimit } from "@/lib/apiSecurity";
 import { NextResponse } from "next/server";
 import { ethers } from "ethers";
-import { generateDONPackedQuorumSignatures } from "@/lib/donSigners";
+import { generateDONPackedQuorumSignatures, computeDonMessageHash, verifyDONQuorumSignatures } from "@/lib/donSigners";
 
 import { CC3_RPC, CONTRACT_ADDRESS, CONTRACT_ABI } from "@/lib/config";
 const RELAYER_PK = process.env.PRIVATE_KEY || process.env.RELAYER_PRIVATE_KEY;
@@ -55,26 +55,34 @@ export async function POST(req: Request) {
       ? ai_digest
       : ethers.keccak256(ethers.toUtf8Bytes(`DIGEST:${checksumTarget}:${scoreVector[0]}`));
 
-    // Generate genuine cryptographic packed signatures from DON validator cluster if not provided
+    // Client-supplied signers/signatures are never trusted at face value: they must
+    // cryptographically recover to real, currently-authorized DON validator addresses
+    // for this exact message, or we regenerate a genuine quorum ourselves. Without this,
+    // anyone could POST arbitrary signers/signatures and get back a "DON_CONSENSUS_REACHED"
+    // response built entirely from unverified input.
+    const scorePayload = {
+      assetAddress: checksumTarget,
+      overallScore: scoreVector[0],
+      liquidity: scoreVector[1],
+      collateral: scoreVector[2],
+      auditScore: scoreVector[3],
+      security: scoreVector[4],
+      volatility: scoreVector[5],
+      governance: scoreVector[6],
+      dataHash: dataHashBytes,
+      aiDigest: aiDigestBytes
+    };
+    const expectedMessageHash = computeDonMessageHash(scorePayload);
+
     let activeSigners = incomingSigners;
     let activeSignatures = incomingSignatures;
+    let quorumSource: "client_verified" | "server_generated" = "client_verified";
 
-    if (!activeSigners || activeSigners.length < 2 || !activeSignatures || activeSignatures.length < 2) {
-      const donQuorum = await generateDONPackedQuorumSignatures({
-        assetAddress: checksumTarget,
-        overallScore: scoreVector[0],
-        liquidity: scoreVector[1],
-        collateral: scoreVector[2],
-        auditScore: scoreVector[3],
-        security: scoreVector[4],
-        volatility: scoreVector[5],
-        governance: scoreVector[6],
-        dataHash: dataHashBytes,
-        aiDigest: aiDigestBytes
-      }, 2);
-
+    if (!verifyDONQuorumSignatures(incomingSigners, incomingSignatures, expectedMessageHash, 2)) {
+      const donQuorum = await generateDONPackedQuorumSignatures(scorePayload, 2);
       activeSigners = donQuorum.signers;
       activeSignatures = donQuorum.signatures;
+      quorumSource = "server_generated";
     }
 
     // Check Creditcoin CC3 block height for proof
@@ -144,6 +152,7 @@ export async function POST(req: Request) {
       success: true,
       status: "DON_CONSENSUS_REACHED",
       quorum_threshold: "2-of-3 BFT Consensus Verified",
+      quorum_source: quorumSource,
       executionMode,
       isOnchainBroadcast: !!realTxHash,
       signers_count: activeSigners.length,

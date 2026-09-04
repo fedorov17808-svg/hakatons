@@ -147,7 +147,9 @@ export async function POST(req: Request) {
       ? ai_digest
       : ethers.keccak256(ethers.toUtf8Bytes(`DIGEST:${checksumTarget}:${scoreVector[0]}`));
 
-    const minQuorum = Number(quorum) || 2;
+    // Clamp to [1, 3]: there are only 3 DON nodes, and an unbounded/negative value
+    // would make quorum-reached checks and array slicing behave incorrectly.
+    const minQuorum = Math.min(3, Math.max(1, Math.round(Number(quorum)) || 2));
 
     // ── Phase 1: Attempt REAL distributed consensus via HTTP ──
     const distributedPayload = {

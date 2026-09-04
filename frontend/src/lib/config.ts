@@ -69,6 +69,8 @@ export interface DONNodeItem {
   address: string;
   region: string;
   status: string;
+  health?: string;
+  source?: string;
   latency_ms: number;
 }
 

@@ -182,6 +182,7 @@ export default function Home() {
             <ExecutionModeSwitcher
               mode={submissionMode}
               onModeChange={setSubmissionMode}
+              donNodes={donNodes}
             />
 
             <ActionButtons
