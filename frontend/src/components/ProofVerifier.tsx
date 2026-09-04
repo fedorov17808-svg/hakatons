@@ -50,12 +50,18 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
   const [recordingVerified, setRecordingVerified] = useState(false);
   const [verifiedTxHash, setVerifiedTxHash] = useState<string | null>(null);
   const [verifiedRecordStatus, setVerifiedRecordStatus] = useState<string>("");
+  const [verifiedOnchain, setVerifiedOnchain] = useState<boolean | null>(null);
+  const [verifiedNote, setVerifiedNote] = useState<string | null>(null);
+  const [verifiedExplorerUrl, setVerifiedExplorerUrl] = useState<string | null>(null);
 
   const recordVerifiedOnChain = async () => {
     if (!attestcoinResult) return;
     setRecordingVerified(true);
     setVerifiedRecordStatus("Step 1/2: Submitting Merkle & Continuity proof to CreditPulseASC (via 0x0FD2)...");
     setVerifiedTxHash(null);
+    setVerifiedOnchain(null);
+    setVerifiedNote(null);
+    setVerifiedExplorerUrl(null);
     try {
       const res = await fetch(`${apiUrl}/api/record-verified`, {
         method: "POST",
@@ -77,10 +83,18 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
       if (!res.ok) {
         throw new Error(data.detail || "Failed to commit verified proof on-chain");
       }
-      setVerifiedTxHash(data.txHash);
-      setVerifiedRecordStatus("✅ Cross-Chain Proof cryptographically verified & bound on Creditcoin CC3!");
+      setVerifiedTxHash(data.onchainTxHash || data.txHash);
+      setVerifiedOnchain(!!data.isOnchainBroadcast);
+      setVerifiedNote(data.deployment_note || null);
+      setVerifiedExplorerUrl(data.explorer_url || null);
+      setVerifiedRecordStatus(
+        data.isOnchainBroadcast
+          ? "✅ Cross-Chain Proof cryptographically verified & bound on Creditcoin CC3!"
+          : "🔶 Off-chain attestation commitment generated (not yet broadcast on-chain)"
+      );
     } catch (e: unknown) {
       const err = e as Error;
+      setVerifiedOnchain(false);
       setVerifiedRecordStatus("❌ " + (err?.message || "Failed to record verified proof"));
     } finally {
       setRecordingVerified(false);
@@ -313,10 +327,13 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
 
               {verifiedRecordStatus && (
                 <div className="mt-3 p-3 bg-slate-900 border border-slate-800 rounded-xl text-center space-y-2">
-                  <p className="text-xs font-mono text-emerald-400">{verifiedRecordStatus}</p>
-                  {verifiedTxHash && (
+                  <p className={`text-xs font-mono ${verifiedOnchain ? 'text-emerald-400' : 'text-amber-400'}`}>{verifiedRecordStatus}</p>
+                  {verifiedNote && (
+                    <p className="text-[11px] text-slate-400 leading-relaxed">{verifiedNote}</p>
+                  )}
+                  {verifiedOnchain && verifiedTxHash && (
                     <a
-                      href={`https://creditcoin-testnet.blockscout.com/tx/${verifiedTxHash}`}
+                      href={verifiedExplorerUrl || `https://creditcoin-testnet.blockscout.com/tx/${verifiedTxHash}`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-xs text-cyan-400 hover:underline block font-mono"
