@@ -140,9 +140,10 @@ describe('RadarChartComponent', () => {
 import { DONClusterMonitor } from '@/components/DONClusterMonitor'
 
 describe('DONClusterMonitor', () => {
-  it('renders nothing when no nodes', () => {
+  it('renders a loading skeleton (not nothing) when no nodes, to avoid layout shift', () => {
     const { container } = render(<DONClusterMonitor nodes={[]} />)
-    expect(container.firstChild).toBeNull()
+    expect(container.firstChild).not.toBeNull()
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
   it('renders BFT Quorum badge with nodes', () => {

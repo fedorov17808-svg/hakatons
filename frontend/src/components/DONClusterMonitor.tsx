@@ -12,7 +12,23 @@ interface DONClusterMonitorProps {
  * Displays real-time status and latency of oracle validator nodes.
  */
 export function DONClusterMonitor({ nodes }: DONClusterMonitorProps) {
-  if (nodes.length === 0) return null;
+  // Reserve the same footprint while node data is still loading, so it doesn't
+  // pop in and shift everything below it down a second or two after page load.
+  if (nodes.length === 0) {
+    return (
+      <div className="mb-8 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 shadow-xl print:hidden animate-pulse">
+        <div className="flex items-center justify-between mb-3">
+          <div className="h-3 w-48 bg-slate-800 rounded"></div>
+          <div className="h-4 w-28 bg-slate-800 rounded-full"></div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 h-[72px]"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isOnline = (n: DONNodeItem) => (n.status || "").toUpperCase() === "ONLINE";
   const onlineCount = nodes.filter(isOnline).length;
