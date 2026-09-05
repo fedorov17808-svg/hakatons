@@ -52,12 +52,16 @@ export async function POST(req: Request) {
         const data = await proverRes.json();
         proverAvailable = true;
         blockNum = data.fromHeader || blockNum;
-        merkleRoot = data.merkleProofs?.[blockNum]?.root || merkleRoot;
-        merkleSiblings = data.merkleProofs?.[blockNum]?.siblings?.length ?? null;
+        // The prover nests each tx's proof as merkleProofs[blockNum][txIndex].merkleProof —
+        // not merkleProofs[blockNum] directly. Reading the wrong level silently fell back
+        // to the deterministic placeholder root/siblings while still claiming "live".
+        const merkleForBlock = data.merkleProofs?.[String(blockNum)];
+        const txKey = merkleForBlock ? Object.keys(merkleForBlock)[0] : undefined;
+        const txProof = txKey ? merkleForBlock[txKey] : undefined;
+        merkleRoot = txProof?.merkleProof?.root || merkleRoot;
+        merkleSiblings = txProof?.merkleProof?.siblings?.length ?? null;
         continuityRoots = data.continuityProof?.roots?.length ?? null;
-        txBytesSize = data.encodedTransactions?.[0]?.length
-          ? Math.ceil(data.encodedTransactions[0].length / 2)
-          : null;
+        txBytesSize = txProof?.txBytes ? Math.ceil((txProof.txBytes.length - 2) / 2) : null;
       }
     } catch (e) { console.warn("CC3 Proof Builder unavailable:", (e as Error).message); }
 
