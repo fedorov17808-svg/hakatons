@@ -202,6 +202,7 @@ export async function POST(req: NextRequest) {
           isContract: walletData.is_contract,
           totalPortfolioUsd: walletData.total_portfolio_usd,
           isProtocolTvlEstimate: false,
+          circuitBreakerActive: false,
           txCount,
           liveEthPrice: ethPrice,
         });

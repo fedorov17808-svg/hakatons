@@ -301,6 +301,7 @@ export async function POST(req: Request) {
       isContract: onchainTelemetry.is_contract,
       totalPortfolioUsd: estAssetUsd,
       isProtocolTvlEstimate: !!liveProtocol,
+      circuitBreakerActive,
       txCount: onchainTelemetry.transaction_count,
       liveEthPrice
     });

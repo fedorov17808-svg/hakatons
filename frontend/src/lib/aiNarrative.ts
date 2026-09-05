@@ -22,6 +22,9 @@ export interface NarrativeInputs {
    *  call a TVL estimate "verifiable on-chain" — that phrase is reserved
    *  for figures actually read from the address's own on-chain state. */
   isProtocolTvlEstimate: boolean;
+  /** Whether the scoring engine's own circuit breaker actually fired for this
+   *  address. The narrative must not claim it was "triggered" when it wasn't. */
+  circuitBreakerActive: boolean;
   txCount: number;
   liveEthPrice: number;
 }
@@ -130,7 +133,9 @@ Format response strictly as JSON:
       "Continuous automated keeper liquidation monitoring enabled"
     );
   } else {
-    narrative = `HIGH RISK WARNING: Unseasoned or zero-balance counterparty with 0 verifiable collateral backing. Circuit breaker protocols triggered to prevent uncollateralized lending exposure.`;
+    narrative = inputs.circuitBreakerActive
+      ? `HIGH RISK WARNING: Unseasoned or zero-balance counterparty with 0 verifiable collateral backing. Circuit breaker protocols triggered to prevent uncollateralized lending exposure.`
+      : `HIGH RISK WARNING: Counterparty exhibits minimal solvency backing and elevated default sensitivity. Manual underwriting review and overcollateralization are required before any lending exposure.`;
     risks.push(
       "Zero or negligible on-chain collateralization",
       "Unseasoned address with unverified identity / transaction history",
