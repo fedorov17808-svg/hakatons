@@ -231,12 +231,15 @@ const VERIFIED_TARGETS: RiskReport[] = [
   },
 ];
 
+// Boundaries match the verdict tiers in /api/analyze/route.ts and
+// LendingSimulator.tsx (>=85/70/50/30) so the same score can't be "AAA" here
+// and "AA" on the analysis page.
 function getVerdict(score: number): { label: string; color: string; badgeBg: string } {
-  if (score >= 80) return { label: "AAA", color: "text-emerald-400", badgeBg: "bg-emerald-500/10 border-emerald-500/30" };
-  if (score >= 65) return { label: "AA", color: "text-cyan-400", badgeBg: "bg-cyan-500/10 border-cyan-500/30" };
+  if (score >= 85) return { label: "AAA", color: "text-emerald-400", badgeBg: "bg-emerald-500/10 border-emerald-500/30" };
+  if (score >= 70) return { label: "AA", color: "text-cyan-400", badgeBg: "bg-cyan-500/10 border-cyan-500/30" };
   if (score >= 50) return { label: "A", color: "text-blue-400", badgeBg: "bg-blue-500/10 border-blue-500/30" };
-  if (score >= 35) return { label: "BBB", color: "text-amber-400", badgeBg: "bg-amber-500/10 border-amber-500/30" };
-  if (score >= 25) return { label: "CCC", color: "text-orange-400", badgeBg: "bg-orange-500/10 border-orange-500/30" };
+  if (score >= 30) return { label: "BBB", color: "text-amber-400", badgeBg: "bg-amber-500/10 border-amber-500/30" };
+  if (score >= 15) return { label: "CCC", color: "text-orange-400", badgeBg: "bg-orange-500/10 border-orange-500/30" };
   return { label: "High Risk", color: "text-rose-400", badgeBg: "bg-rose-500/10 border-rose-500/30" };
 }
 

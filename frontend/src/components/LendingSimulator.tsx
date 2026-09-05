@@ -10,12 +10,14 @@ interface LendingSimulatorProps {
 export function LendingSimulator({ score, protocolName }: LendingSimulatorProps) {
   const [collateralAmount, setCollateralAmount] = useState<number>(100000); // $100,000 USD default
 
-  // Mathematical LTV & Interest Curve based on CreditPulse Score (0-100)
-  // Score 90-100: AAA Tier -> 85% LTV, 3.2% APR, 92% Liquidation Threshold
-  // Score 75-89:  AA Tier  -> 78% LTV, 4.5% APR, 86% Liquidation Threshold
-  // Score 60-74:  A Tier   -> 68% LTV, 6.2% APR, 78% Liquidation Threshold
-  // Score 45-59:  BBB Tier -> 55% LTV, 8.5% APR, 68% Liquidation Threshold
-  // Score <45:    High Risk-> 40% LTV, 13.5% APR, 55% Liquidation Threshold
+  // Mathematical LTV & Interest Curve based on CreditPulse Score (0-100).
+  // Boundaries match the verdict tiers in /api/analyze/route.ts (>=85/70/50/30)
+  // so the same score never shows "AAA" in one panel and "AA" in another.
+  // Score 85-100: AAA Tier -> 85% LTV, 3.2% APR, 92% Liquidation Threshold
+  // Score 70-84:  AA Tier  -> 78% LTV, 4.5% APR, 86% Liquidation Threshold
+  // Score 50-69:  A Tier   -> 68% LTV, 6.2% APR, 78% Liquidation Threshold
+  // Score 30-49:  BBB Tier -> 55% LTV, 8.5% APR, 68% Liquidation Threshold
+  // Score <30:    High Risk-> 40% LTV, 13.5% APR, 55% Liquidation Threshold
 
   let tier = "High Risk";
   let ltvBps = 4000;
@@ -24,28 +26,28 @@ export function LendingSimulator({ score, protocolName }: LendingSimulatorProps)
   let color = "text-rose-400";
   let badgeClass = "bg-rose-500/10 border-rose-500/30 text-rose-400";
 
-  if (score >= 90) {
+  if (score >= 85) {
     tier = "Institutional AAA (Sovereign)";
     ltvBps = 8500;
     interestApr = 3.2;
     liquidationThresholdBps = 9200;
     color = "text-emerald-400";
     badgeClass = "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
-  } else if (score >= 75) {
+  } else if (score >= 70) {
     tier = "Investment Grade AA";
     ltvBps = 7800;
     interestApr = 4.5;
     liquidationThresholdBps = 8600;
     color = "text-cyan-400";
     badgeClass = "bg-cyan-500/10 border-cyan-500/30 text-cyan-400";
-  } else if (score >= 60) {
+  } else if (score >= 50) {
     tier = "Active Counterparty A";
     ltvBps = 6800;
     interestApr = 6.2;
     liquidationThresholdBps = 7800;
     color = "text-blue-400";
     badgeClass = "bg-blue-500/10 border-blue-500/30 text-blue-400";
-  } else if (score >= 45) {
+  } else if (score >= 30) {
     tier = "Moderate Grade BBB";
     ltvBps = 5500;
     interestApr = 8.5;

@@ -49,7 +49,7 @@ import { Footer } from '@/components/Footer'
 describe('Footer', () => {
   it('renders version badge', () => {
     render(<Footer />)
-    expect(screen.getByText(/v7\.2\.0/)).toBeInTheDocument()
+    expect(screen.getByText(/v8\.5\.0/)).toBeInTheDocument()
   })
 
   it('renders Creditcoin reference', () => {

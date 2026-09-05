@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { PROTOCOL_VERSION } from "@/lib/config";
 
 interface CurrentAnalysisData {
   address: string;
@@ -140,7 +141,7 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
           <div>
             <div className="flex items-center gap-3">
               <h3 className="text-2xl font-bold text-white tracking-tight">Attestcoin Cryptographic Verifier</h3>
-              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-mono">v8.0.0 Enterprise</span>
+              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-0.5 rounded-full font-mono">v{PROTOCOL_VERSION} Enterprise</span>
             </div>
             <p className="text-indigo-300/80 text-sm mt-1">
               Trustlessly prove source chain transaction inclusion via Creditcoin Native Query Verifier Precompile <code className="bg-indigo-500/10 px-1.5 py-0.5 rounded text-indigo-300 text-xs font-mono">0x0FD2</code>
