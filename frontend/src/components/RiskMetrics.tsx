@@ -149,7 +149,7 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
               <span>⚡</span> Verifiable On-Chain Balance:
             </span>
             <span className="font-mono font-bold text-emerald-400 text-sm">
-              ${(telem.total_portfolio_usd || 0).toLocaleString()}
+              ${(telem.total_portfolio_usd || 0).toLocaleString('en-US')}
             </span>
           </div>
 
@@ -168,7 +168,7 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
               </span>
               {telem.live_eth_price_usd != null ? (
                 <span className={`font-bold ${telem.price_source?.includes("Live") ? "text-cyan-300" : "text-amber-400"}`}>
-                  ${telem.live_eth_price_usd.toLocaleString()}
+                  ${telem.live_eth_price_usd.toLocaleString('en-US')}
                 </span>
               ) : (
                 <span className="text-slate-500 font-bold">—</span>
@@ -185,7 +185,7 @@ export const RiskMetrics: React.FC<RiskMetricsProps> = ({ result }) => {
               <div className="flex flex-wrap gap-1.5">
                 {telem.token_balances.map((t) => (
                   <span key={t.symbol} className="text-[10px] font-mono bg-cyan-950/50 border border-cyan-800/40 text-cyan-300 px-2 py-0.5 rounded">
-                    {t.symbol}: {t.balance.toLocaleString()} (${t.usd_value.toLocaleString()})
+                    {t.symbol}: {t.balance.toLocaleString('en-US')} (${t.usd_value.toLocaleString('en-US')})
                   </span>
                 ))}
               </div>

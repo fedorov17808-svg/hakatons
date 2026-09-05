@@ -158,7 +158,7 @@ Raising **$500,000 Seed Round** for 18-month runway:
             <div className="space-y-2">
               <div className="flex justify-between text-xs text-slate-400 font-mono">
                 <span>Monthly Query Volume:</span>
-                <span className="text-white font-bold">{queryVolume.toLocaleString()} queries/mo</span>
+                <span className="text-white font-bold">{queryVolume.toLocaleString('en-US')} queries/mo</span>
               </div>
               <input
                 type="range"
@@ -179,19 +179,19 @@ Raising **$500,000 Seed Round** for 18-month runway:
             <div className="grid grid-cols-3 gap-3 text-center font-mono">
               <div className="bg-slate-950/80 p-3 rounded-xl border border-rose-500/20">
                 <div className="text-xs text-rose-400 font-bold mb-1">🔥 20% Burn</div>
-                <div className="text-base font-extrabold text-white">{burnedCTC.toLocaleString()}</div>
+                <div className="text-base font-extrabold text-white">{burnedCTC.toLocaleString('en-US')}</div>
                 <div className="text-[10px] text-slate-500">CTC Destroyed</div>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-emerald-500/20">
                 <div className="text-xs text-emerald-400 font-bold mb-1">🛡️ 60% Nodes</div>
-                <div className="text-base font-extrabold text-white">{nodeOperatorRewardCTC.toLocaleString()}</div>
+                <div className="text-base font-extrabold text-white">{nodeOperatorRewardCTC.toLocaleString('en-US')}</div>
                 <div className="text-[10px] text-slate-500">CTC Validator APR</div>
               </div>
 
               <div className="bg-slate-950/80 p-3 rounded-xl border border-cyan-500/20">
                 <div className="text-xs text-cyan-400 font-bold mb-1">🏦 20% Pool</div>
-                <div className="text-base font-extrabold text-white">{insurancePoolCTC.toLocaleString()}</div>
+                <div className="text-base font-extrabold text-white">{insurancePoolCTC.toLocaleString('en-US')}</div>
                 <div className="text-[10px] text-slate-500">CTC Insurance Reserve</div>
               </div>
             </div>

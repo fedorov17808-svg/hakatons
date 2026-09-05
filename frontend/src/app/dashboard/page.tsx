@@ -183,7 +183,7 @@ export default function DashboardPage() {
             <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6">
               <h3 className="text-lg font-semibold mb-4 text-slate-200">Network Info</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <InfoCell label="Current Block" value={stats?.currentBlock?.toLocaleString() ?? "—"} />
+                <InfoCell label="Current Block" value={stats?.currentBlock?.toLocaleString('en-US') ?? "—"} />
                 <InfoCell label="Chain ID" value="102031" />
                 <InfoCell label="Network" value="Creditcoin CC3 Testnet" />
                 <InfoCell label="Contract" value={data.health?.contract?.slice(0, 10) + "..." || "—"} />

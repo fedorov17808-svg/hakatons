@@ -262,7 +262,7 @@ export const ProofVerifier: React.FC<ProofVerifierProps> = ({ apiUrl, currentAna
                     {attestcoinResult.verified ? 'Cryptographic Proof Verified & Bound!' : 'Deterministic Commitment Generated'}
                   </div>
                   <div className="text-slate-400 text-xs flex items-center gap-2">
-                    <span>Sepolia (Chain 1) → Creditcoin CC3 · Block #{attestcoinResult.block_number?.toLocaleString()}</span>
+                    <span>Sepolia (Chain 1) → Creditcoin CC3 · Block #{attestcoinResult.block_number?.toLocaleString('en-US')}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${attestcoinResult.verified ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
                       {attestcoinResult.verification_mode}
                     </span>

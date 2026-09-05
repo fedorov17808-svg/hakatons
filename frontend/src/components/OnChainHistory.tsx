@@ -65,7 +65,7 @@ export function OnChainHistory({
                 </span>
                 <span className="text-slate-500">·</span>
                 <span className="text-slate-400">
-                  {new Date(rec.timestamp * 1000).toLocaleDateString()}
+                  {new Date(rec.timestamp * 1000).toLocaleDateString('en-US')}
                 </span>
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded ${

@@ -319,9 +319,9 @@ function renderStepResult(stepId: string, data: Record<string, unknown>): string
     case "resolve_address":
       return `→ ${(data.address as string)?.slice(0, 10)}...${(data.address as string)?.slice(-6)}`;
     case "fetch_price":
-      return `→ ETH = $${Number(data.ethPrice).toLocaleString()} (${data.source})`;
+      return `→ ETH = $${Number(data.ethPrice).toLocaleString('en-US')} (${data.source})`;
     case "fetch_protocol":
-      return `→ ${data.protocolName} | TVL: $${Number(data.tvl || 0).toLocaleString()}`;
+      return `→ ${data.protocolName} | TVL: $${Number(data.tvl || 0).toLocaleString('en-US')}`;
     case "inspect_wallet":
       return `→ ${data.isContract ? "Contract" : "EOA"} | ${data.tokenCount} tokens | via ${(data.rpcNodes as string[])?.join(", ")}`;
     case "cc3_balance":

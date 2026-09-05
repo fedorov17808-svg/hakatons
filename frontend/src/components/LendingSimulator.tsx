@@ -108,10 +108,10 @@ export function LendingSimulator({ score, protocolName }: LendingSimulatorProps)
         <div className="p-4 bg-slate-950/80 border border-slate-800/90 rounded-xl">
           <div className="text-xs text-slate-400 mb-1">Maximum Borrowable</div>
           <div className="text-2xl font-black text-white font-mono">
-            ${maxBorrow.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            ${maxBorrow.toLocaleString('en-US', { maximumFractionDigits: 0 })}
           </div>
           <div className={`text-[11px] font-semibold mt-1 ${capitalEfficiencyGain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {capitalEfficiencyGain >= 0 ? `+$${capitalEfficiencyGain.toLocaleString()} bonus capacity` : `-$${Math.abs(capitalEfficiencyGain).toLocaleString()} risk cap`}
+            {capitalEfficiencyGain >= 0 ? `+$${capitalEfficiencyGain.toLocaleString('en-US')} bonus capacity` : `-$${Math.abs(capitalEfficiencyGain).toLocaleString('en-US')} risk cap`}
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export function LendingSimulator({ score, protocolName }: LendingSimulatorProps)
           <div className="text-xs text-slate-400 mb-1">Risk-Adjusted APR</div>
           <div className="text-2xl font-black text-cyan-300 font-mono">{interestApr}%</div>
           <div className="text-[11px] text-slate-500 mt-1 font-mono">
-            Est. Cost: ${annualInterestCost.toLocaleString(undefined, { maximumFractionDigits: 0 })}/yr
+            Est. Cost: ${annualInterestCost.toLocaleString('en-US', { maximumFractionDigits: 0 })}/yr
           </div>
         </div>
 
