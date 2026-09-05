@@ -201,6 +201,7 @@ export async function POST(req: NextRequest) {
           cvar99: varResult.cvar99,
           isContract: walletData.is_contract,
           totalPortfolioUsd: walletData.total_portfolio_usd,
+          isProtocolTvlEstimate: false,
           txCount,
           liveEthPrice: ethPrice,
         });

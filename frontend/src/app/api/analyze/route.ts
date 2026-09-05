@@ -300,6 +300,7 @@ export async function POST(req: Request) {
       cvar99: mc.cvar99,
       isContract: onchainTelemetry.is_contract,
       totalPortfolioUsd: estAssetUsd,
+      isProtocolTvlEstimate: !!liveProtocol,
       txCount: onchainTelemetry.transaction_count,
       liveEthPrice
     });

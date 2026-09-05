@@ -16,6 +16,12 @@ export interface NarrativeInputs {
   cvar99: number;
   isContract: boolean;
   totalPortfolioUsd: number;
+  /** True when totalPortfolioUsd is a DeFiLlama protocol-wide TVL estimate
+   *  (used as the Merton/Monte Carlo asset-value input), not this specific
+   *  address's own RPC-verified on-chain balance. The narrative must not
+   *  call a TVL estimate "verifiable on-chain" — that phrase is reserved
+   *  for figures actually read from the address's own on-chain state. */
+  isProtocolTvlEstimate: boolean;
   txCount: number;
   liveEthPrice: number;
 }
@@ -45,7 +51,7 @@ Data:
 - Merton Structural Probability of Default (1Y): ${(inputs.mertonProbDefault * 100).toFixed(2)}%
 - Distance to Default: ${inputs.distanceToDefault.toFixed(2)} sigma
 - 10-Day 99% Value-at-Risk (VaR): ${inputs.var99.toFixed(2)}% (CVaR: ${inputs.cvar99.toFixed(2)}%)
-- Total Verifiable Solvency / Portfolio: $${inputs.totalPortfolioUsd.toLocaleString()}
+- ${inputs.isProtocolTvlEstimate ? "Protocol-Wide TVL (DeFiLlama estimate, used as Merton asset-value proxy)" : "Verifiable On-Chain Solvency / Portfolio"}: $${inputs.totalPortfolioUsd.toLocaleString()}
 - On-Chain Activity / Nonce: ${inputs.txCount} historical transactions
 - Contract / EOA Type: ${inputs.isContract ? "Smart Contract" : "EOA Account"}
 
@@ -91,7 +97,7 @@ Format response strictly as JSON:
   const recs: string[] = [];
 
   if (inputs.score >= 85) {
-    narrative = `${inputs.protocolName} exhibits sovereign/institutional-tier balance sheet strength with a 1Y Merton default probability of ${(inputs.mertonProbDefault * 100).toFixed(2)}% (${inputs.distanceToDefault.toFixed(2)}σ distance to default). Verifiable on-chain capital reserves of $${inputs.totalPortfolioUsd.toLocaleString()} provide substantial tail-risk loss absorption under jump-diffusion volatility scenarios.`;
+    narrative = `${inputs.protocolName} exhibits sovereign/institutional-tier balance sheet strength with a 1Y Merton default probability of ${(inputs.mertonProbDefault * 100).toFixed(2)}% (${inputs.distanceToDefault.toFixed(2)}σ distance to default). ${inputs.isProtocolTvlEstimate ? `Protocol-wide TVL of $${inputs.totalPortfolioUsd.toLocaleString()} (DeFiLlama) provides` : `Verifiable on-chain capital reserves of $${inputs.totalPortfolioUsd.toLocaleString()} provide`} substantial tail-risk loss absorption under jump-diffusion volatility scenarios.`;
     risks.push(
       "Macro interest rate spread fluctuation affecting collateral yields",
       "Cross-chain bridge settlement synchronization and latency limits",
@@ -113,7 +119,7 @@ Format response strictly as JSON:
       "Recommended maximum LTV: 68.0% with 24h oracle price update cadences"
     );
   } else if (inputs.score >= 35) {
-    narrative = `Counterparty exhibits speculative-grade risk profile with elevated default sensitivity. With $${inputs.totalPortfolioUsd.toLocaleString()} in liquid balances and ${inputs.txCount} transaction history, volatility shock resilience requires defensive collateralization.`;
+    narrative = `Counterparty exhibits speculative-grade risk profile with elevated default sensitivity. With $${inputs.totalPortfolioUsd.toLocaleString()} in ${inputs.isProtocolTvlEstimate ? "protocol-wide TVL (DeFiLlama)" : "liquid balances"} and ${inputs.txCount} transaction history, volatility shock resilience requires defensive collateralization.`;
     risks.push(
       "Limited verifiable liquidity depth under severe stress conditions",
       "Elevated tail-risk expected shortfall (CVaR: " + inputs.cvar99.toFixed(2) + "%)",
